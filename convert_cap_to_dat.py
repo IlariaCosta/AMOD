@@ -50,4 +50,11 @@ def convert_cap_file_to_ampl_dat(input_file, output_file="output.dat"):
     print(f"✔ Conversione completata: {output_file}")
 
 # Esegui direttamente
-convert_cap_file_to_ampl_dat("cap41.txt", "cap41.dat")
+convert_cap_file_to_ampl_dat("cap71.txt", "cap71.dat")
+convert_cap_file_to_ampl_dat("cap72.txt", "cap72.dat")
+convert_cap_file_to_ampl_dat("cap73.txt", "cap73.dat")
+convert_cap_file_to_ampl_dat("cap74.txt", "cap74.dat")
+convert_cap_file_to_ampl_dat("cap101.txt", "cap101.dat")
+convert_cap_file_to_ampl_dat("cap102.txt", "cap102.dat")
+convert_cap_file_to_ampl_dat("cap103.txt", "cap103.dat")
+convert_cap_file_to_ampl_dat("cap104.txt", "cap104.dat")
