@@ -1,0 +1,125 @@
+reset;
+
+model ufl.mod;
+
+# Lista file dati da studiare (modifica qui con i tuoi nomi file)
+#set Files symbolic := "cap71.dat" "cap72.dat" "cap73.dat";
+set Files symbolic := "cap71.dat", "cap72.dat", "cap73.dat";
+
+
+param TOL := 1e-5;        # tolleranza per controllo interezza variabili
+
+# Funzione per controllare se una soluzione è intera (per y)
+function is_integer_y {i in FACILITIES} := abs(y[i] - round(y[i])) <= TOL;
+
+# Funzione per calcolare gap relativo
+function gap_rel(obj_approx, obj_opt) := (obj_approx - obj_opt) / obj_opt;
+
+# Loop sui file dati
+for {file in Files} {
+
+    reset;
+
+    print "=======================================";
+    print "Elaborazione file dati: ", file;
+
+    data &file;
+
+    # Risolvo il modello intero (MIP)
+    option solver cplex;       # o 'gurobi' se preferisci
+    option cplex_options 'mipgap=0';   # soluzione ottima
+
+    solve;
+
+    param obj_ip := TotalCost;
+    let y_ip := y;
+    let x_ip := x;
+
+    print "Soluzione intera ottima (IP) trovata con obj =", obj_ip;
+
+    # Risolvo rilassato (LP) senza tagli Gomory
+    relax y;
+
+    # Disabilito tagli Gomory nel solver
+    if option_solver = "cplex" then
+        option cplex_options 'gomory_cuts=0';
+    else if option_solver = "gurobi" then
+        option gurobi_options 'Cuts=0';
+
+    solve;
+
+    param obj_lp := TotalCost;
+
+    # Verifico se soluzione rilassata è intera (per y)
+    param frac_found := 0;
+    for {i in FACILITIES} {
+        if not is_integer_y(i) then frac_found := 1;
+    }
+
+    if frac_found = 0 then {
+        print "Soluzione rilassata è già intera! Obj =", obj_lp;
+        print "Gap relativo rispetto IP: ", gap_rel(obj_lp, obj_ip);
+        next;
+    }
+
+    print "Soluzione rilassata frazionaria, obj =", obj_lp;
+
+    # ------------------------------
+    # Modalità 1: tagli Gomory uno alla volta
+    # ------------------------------
+
+    print "--- Modalità 1: aggiunta tagli Gomory uno alla volta ---";
+
+    param max_iter := 20;
+    param iter := 1;
+
+    relax y;  # modello rilassato
+
+    while iter <= max_iter loop
+        if option_solver = "cplex" then
+            # abilito taglio gomory limitato (simulazione di uno alla volta)
+            option cplex_options 'gomory_cuts=1 mip_cuts_limit=1';
+        else if option_solver = "gurobi" then
+            option gurobi_options 'Cuts=1';  # abilita tagli
+
+        solve;
+
+        # controllo se soluzione intera (y)
+        param frac_now := 0;
+        for {i in FACILITIES} {
+            if not is_integer_y(i) then frac_now := 1;
+        }
+
+        if frac_now = 0 then
+            break;
+
+        iter := iter + 1;
+    end loop;
+
+    param obj_gomory_one := TotalCost;
+    print "Iterazioni: ", iter;
+    print "Obj dopo tagli Gomory uno alla volta: ", obj_gomory_one;
+    print "Gap relativo rispetto IP: ", gap_rel(obj_gomory_one, obj_ip);
+
+    # ------------------------------
+    # Modalità 2: tutti i tagli Gomory insieme
+    # ------------------------------
+
+    print "--- Modalità 2: tutti i tagli Gomory insieme ---";
+
+    relax y;
+
+    if option_solver = "cplex" then
+        option cplex_options 'gomory_cuts=1 mip_cuts_limit=1000';
+    else if option_solver = "gurobi" then
+        option gurobi_options 'Cuts=2';
+
+    solve;
+
+    param obj_gomory_all := TotalCost;
+
+    print "Obj con tutti i tagli Gomory abilitati: ", obj_gomory_all;
+    print "Gap relativo rispetto IP: ", gap_rel(obj_gomory_all, obj_ip);
+
+    print "=======================================";
+}
