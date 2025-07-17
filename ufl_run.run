@@ -1,69 +1,60 @@
 reset;
+model ufl_relax.mod;
+/*
+data cap71.dat;
+param obj_opt = 932615;
+*/
+/*
+data cap72.dat;
+param obj_opt = 977799;
+*/
+data cap73.dat;
+param obj_opt = 1010641;
 
-model ufl.mod;
+param obj_ip;
+param x_ip{FACILITIES, CLIENTS};
+param y_ip{FACILITIES};
 
-# Lista file dati da studiare (modifica qui con i tuoi nomi file)
-#set Files symbolic := "cap71.dat" "cap72.dat" "cap73.dat";
-set Files symbolic := "cap71.dat", "cap72.dat", "cap73.dat";
+param option_solver_num := 0;  # 0 = cplex, 1 = gurobi
+
+param frac_found := 0;
+
+param obj_lp;
 
 
 param TOL := 1e-5;        # tolleranza per controllo interezza variabili
 
-# Funzione per controllare se una soluzione è intera (per y)
-function is_integer_y {i in FACILITIES} := abs(y[i] - round(y[i])) <= TOL;
-
-# Funzione per calcolare gap relativo
-function gap_rel(obj_approx, obj_opt) := (obj_approx - obj_opt) / obj_opt;
-
-# Loop sui file dati
-for {file in Files} {
-
-    reset;
 
     print "=======================================";
-    print "Elaborazione file dati: ", file;
+    print "Elaborazione file dati cap71";
 
-    data &file;
-
-    # Risolvo il modello intero (MIP)
-    option solver cplex;       # o 'gurobi' se preferisci
-    option cplex_options 'mipgap=0';   # soluzione ottima
-
-    solve;
-
-    param obj_ip := TotalCost;
-    let y_ip := y;
-    let x_ip := x;
-
-    print "Soluzione intera ottima (IP) trovata con obj =", obj_ip;
-
-    # Risolvo rilassato (LP) senza tagli Gomory
-    relax y;
-
+    
     # Disabilito tagli Gomory nel solver
-    if option_solver = "cplex" then
-        option cplex_options 'gomory_cuts=0';
-    else if option_solver = "gurobi" then
-        option gurobi_options 'Cuts=0';
-
+    option cplex_options 'cuts=0';
+	
+	option solver cplex;
     solve;
 
-    param obj_lp := TotalCost;
+    let obj_lp := TotalCost;
 
     # Verifico se soluzione rilassata è intera (per y)
-    param frac_found := 0;
+    
     for {i in FACILITIES} {
-        if not is_integer_y(i) then frac_found := 1;
+        if not abs(y[i] - round(y[i])) <= TOL then let frac_found := 1;
     }
 
     if frac_found = 0 then {
-        print "Soluzione rilassata è già intera! Obj =", obj_lp;
-        print "Gap relativo rispetto IP: ", gap_rel(obj_lp, obj_ip);
-        next;
+        print "Soluzione rilassata è già intera!", obj_lp;
+        #display y;
+    }
+    else 
+    {
+    	print "Soluzione rilassata frazionaria. =", obj_lp;
+    	print "Gap relativo rispetto IP: ", (obj_lp - obj_opt) / obj_opt;
     }
 
-    print "Soluzione rilassata frazionaria, obj =", obj_lp;
-
+   
+/*
     # ------------------------------
     # Modalità 1: tagli Gomory uno alla volta
     # ------------------------------
@@ -122,4 +113,4 @@ for {file in Files} {
     print "Gap relativo rispetto IP: ", gap_rel(obj_gomory_all, obj_ip);
 
     print "=======================================";
-}
+    */

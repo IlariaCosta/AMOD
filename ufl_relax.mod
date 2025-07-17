@@ -7,8 +7,8 @@ param f {FACILITIES} >= 0;                # costo apertura facility
 param d {CLIENTS} >= 0;                   # domanda cliente (non usata nel modello ma puoi aggiungere)
 param c {CLIENTS, FACILITIES} >= 0;      # costo trasporto cliente-facility
 
-var x {CLIENTS, FACILITIES} binary;  # assegnazione clienti (frazi o intera)
-var y {FACILITIES} binary;                # apertura facility (variabile intera)
+var x {CLIENTS, FACILITIES} >= 0, <= 1;  # assegnazione clienti (frazi o intera)
+var y {FACILITIES} >= 0, <= 1;               # apertura facility (variabile fraz)
 
 # Ogni cliente è assegnato a una e una sola facility
 s.t. Assign {j in CLIENTS}:
