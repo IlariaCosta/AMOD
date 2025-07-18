@@ -4,20 +4,21 @@ import os
 from amplpy import AMPL, Environment
  
 def is_integral(var_values):
-    return all(abs(val - round(val)) < 1e-5 for val in var_values)
+    return all(abs(val - round(val)) < 1e-8 for val in var_values)
  
 def compute_gap(relaxed_val, optimal_val):
     return abs((relaxed_val - optimal_val) / optimal_val) * 100
  
-def solve_with_gomory(ampl, all_cuts=True, max_iter=100):
-    for var in ampl.get_variables().values():
-        for var in ampl.get_variables().values():
-            if var.num_instances() > 1:
-                for i in var.get_values().index():
-                    var[i].set_integer(False)
-            else:
-                var.set_integer(False)
+def solve_with_gomory(ampl, all_cuts, max_iter=100):
+    #for var in ampl.get_variables().values():
+    #    if var.num_instances() > 1:
+    #        for i in var.get_values().index():
+     #           var[i].set_integer(False)
+    #    else:
+    #        var.set_integer(False)
+   
 
+    
     ampl.set_option('presolve', 0)
     ampl.set_option('cut_generation', 'gomory')
     ampl.set_option('solver', 'cplex')
@@ -27,19 +28,41 @@ def solve_with_gomory(ampl, all_cuts=True, max_iter=100):
         t0 = time.time()
         ampl.solve()
         elapsed = time.time() - t0
+        var_values = list(ampl.get_variable('y').get_values().to_dict().values())
+        print(var_values);
+     
         obj = ampl.obj['TotalCost'].value()
         return obj, elapsed, 1
     else:
         # un taglio per volta
         iter_count = 0
         t0 = time.time()
+        prev_val = ampl.get_variable('y').get_values().to_dict()
         while True:
             ampl.set_option('gomory_cuts', 1)
             ampl.solve()
             
             iter_count += 1
-            var_values = list(ampl.get_variable('x').get_values().to_dict().values())[1]
+            ################
+            new_val = ampl.get_variable('y').get_values().to_dict()
+
+            if new_val == prev_val:
+                print("⚠️ Il taglio non ha avuto effetto (soluzione identica)")
+            else:
+                print("✅ Taglio ha modificato la soluzione:")
+                for key in new_val:
+                    print(f"y[{key}]: {prev_val[key]} -> {new_val[key]}")
+
+            prev_val = new_val
+            #############
+            var_values = list(ampl.get_variable('y').get_values().to_dict().values())
+            
             if is_integral(var_values) or iter_count >= max_iter:
+                print("è intero!")
+                print("Valori di y:")
+                print(var_values);
+                #for idx, val in var_values.items():
+                   # print(f"y[{idx}] = {val}")
                 break
         elapsed = time.time() - t0
         obj = ampl.obj['TotalCost'].value()
@@ -80,7 +103,7 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
     
     gap_relax = compute_gap(obj_relax, obj_int)
     
-    x_vals = list(ampl_relax.get_variable('x').get_values().to_dict().values())
+    x_vals = list(ampl_relax.get_variable('y').get_values().to_dict().values())
     
     already_integer = is_integral(x_vals)
 
@@ -107,15 +130,17 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
     ampl_all = AMPL()
     ampl_all.read(mod_path_relax)
     ampl_all.read_data(data_path)
+    print("sto per tagliarmi 1")
     obj_all, time_all, iter_all = solve_with_gomory(ampl_all, all_cuts=True)
     gap_all = compute_gap(obj_all, obj_int)
 
     # 4. Gomory: uno alla volta
-    ampl_step = AMPL()
-    ampl_step.read(mod_path_relax)
-    ampl_step.read_data(data_path)
-    obj_step, time_step, iter_step = solve_with_gomory(ampl_step, all_cuts=False)
-    gap_step = compute_gap(obj_step, obj_int)
+    # ampl_step = AMPL()
+    # ampl_step.read(mod_path_relax)
+    # ampl_step.read_data(data_path)
+    # print("sto per tagliarmi 2")
+    # obj_step, time_step, iter_step = solve_with_gomory(ampl_step, all_cuts=False)
+    # gap_step = compute_gap(obj_step, obj_int)
 
     return {
         "istanza": os.path.basename(data_path),
@@ -128,10 +153,10 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
         "time_gomory_all": time_all,
         "iter_gomory_all": iter_all,
         "gap_gomory_all": gap_all,
-        "obj_gomory_step": obj_step,
-        "time_gomory_step": time_step,
-        "iter_gomory_step": iter_step,
-        "gap_gomory_step": gap_step,
+        # "obj_gomory_step": obj_step,
+        # "time_gomory_step": time_step,
+        # "iter_gomory_step": iter_step,
+        # "gap_gomory_step": gap_step,
         "nota": ""
     }
 
@@ -142,6 +167,7 @@ def main():
     istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith(".dat")])
     print("File .dat trovati:", istanze)
     risultati = []
+    istanze = istanze[1:2]
     for ist in istanze:
         print(f"\n🔄 Elaborazione {ist}...")
         try:
