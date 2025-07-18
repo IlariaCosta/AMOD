@@ -3,20 +3,29 @@
 set FACILITIES;
 set CLIENTS;
 
-param f {FACILITIES} >= 0;                # costo apertura facility
-param d {CLIENTS} >= 0;                   # domanda cliente (non usata nel modello ma puoi aggiungere)
-param c {CLIENTS, FACILITIES} >= 0;      # costo trasporto cliente-facility
+param f {FACILITIES} >= 0;                   # costo apertura facility
+param d {CLIENTS} >= 0;                      # domanda cliente (non usata nel modello ma puoi aggiungere)
+param c {CLIENTS, FACILITIES} >= 0;          # costo trasporto cliente-facility
 
-var x {CLIENTS, FACILITIES} >= 0, <= 1;  # assegnazione clienti (frazi o intera)
+param M := max {j in CLIENTS} d[j];					     # definisco big M
+
+#var x {CLIENTS, FACILITIES} >= 0, <= 1;     # assegnazione clienti (frazi o intera)
+var x {CLIENTS, FACILITIES} >=0;  			 # assegnazione clienti (frazi o intera)
 var y {FACILITIES} >= 0, <= 1;               # apertura facility (variabile fraz)
 
+/*
 # Ogni cliente è assegnato a una e una sola facility
 s.t. Assign {j in CLIENTS}:
     sum{i in FACILITIES} x[j,i] = 1;
-
+*/
 # Non assegnare clienti a facility chiuse
 s.t. OpenLink {i in FACILITIES, j in CLIENTS}:
-    x[j,i] <= y[i];
+    x[j,i] <= M*y[i];
+
+
+# La domanda del cliente deve essere soddisfatta
+s.t. demand {j in CLIENTS}:
+	sum{i in FACILITIES} x[j,i] = d[j];
 
 # Funzione obiettivo: costi apertura + costi trasporto
 minimize TotalCost:

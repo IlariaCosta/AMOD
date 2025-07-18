@@ -8,8 +8,8 @@ param obj_opt = 932615;
 data cap72.dat;
 param obj_opt = 977799;
 */
-data cap73.dat;
-param obj_opt = 1010641;
+data cap101.dat;
+param obj_opt = 796647;
 
 param obj_ip;
 param x_ip{FACILITIES, CLIENTS};
@@ -17,7 +17,8 @@ param y_ip{FACILITIES};
 
 param option_solver_num := 0;  # 0 = cplex, 1 = gurobi
 
-param frac_found := 0;
+param frac_found;
+let frac_found := 0;
 
 param obj_lp;
 
@@ -26,7 +27,7 @@ param TOL := 1e-5;        # tolleranza per controllo interezza variabili
 
 
     print "=======================================";
-    print "Elaborazione file dati cap71";
+    print "Elaborazione file dati cap101";
 
     
     # Disabilito tagli Gomory nel solver

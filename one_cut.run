@@ -1,0 +1,93 @@
+reset;
+model ufl_relax.mod;
+/*
+data cap71.dat;
+param obj_opt = 932615;
+*/
+/*
+data cap72.dat;
+param obj_opt = 977799;
+*/
+data cap101.dat;
+param obj_opt = 796647;
+
+/********* definizione parametri ********************/
+param obj_ip;
+param x_ip{FACILITIES, CLIENTS};
+param y_ip{FACILITIES};
+
+param option_solver_num := 0;  # 0 = cplex, 1 = gurobi
+param frac_found;
+let frac_found := 0;
+param obj_lp;
+param TOL := 1e-5;        # tolleranza per controllo interezza variabili
+param iter;
+let iter := 1;
+
+param iterazioni_max := 2;
+param cmd_str;
+
+print "=======================================";
+print "Elaborazione file dati cap101";
+
+
+# Disabilito tagli Gomory nel solver
+option cplex_options 'cuts=0';
+option solver cplex;
+repeat {
+	printf "\n============= Iterazione %d =============\n", iter;
+	
+	solve;
+	
+	let obj_lp := TotalCost;
+	
+	# Verifico se soluzione rilassata è intera (per y)
+	let frac_found := 0;
+	for {i in FACILITIES} {
+	    if not abs(y[i] - round(y[i])) <= TOL then let frac_found := 1;
+	}
+	
+	if frac_found = 0 then {
+	    printf "Soluzione intera trovata dopo %d iterazione!\n", iter;
+	    break;
+	}
+	
+	printf "\nSoluzione frazionaria alla %d iterazione = %f\n", iter, obj_lp;
+	printf "Gap relativo rispetto IP: %d\n", (obj_lp - obj_opt) / obj_opt;
+
+	
+	/******************************************************************/
+	# esporto soluzione corrente su file
+
+	printf {i in FACILITIES} "%s %f\n", i, y[i] > "y_sol.txt";
+	
+	# Chiama lo script Python e salva il taglio in un file .txt
+	
+	let cmd_str := sprintf("build_cut.py y_sol.txt %d > cut_iter.mod", iter);
+
+	shell 'python' cmd_str;
+	#shell "python build_cut.py y_sol.txt %d > cut_iter.mod" iter;
+
+
+
+
+	
+	# Include il taglio nel modello AMPL e risolvi di nuovo
+	include cut_iter.mod;
+	let iter := iter + 1;
+	if iter > iterazioni_max then {
+		printf " Numero iterazioni massime (%d) aggiunge.\n", iterazioni_max;
+		break;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+

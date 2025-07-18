@@ -2,14 +2,14 @@ reset;
 model ufl.mod;
 
 # Prima istanza 932615
-data cap71.dat;
-option solver cplex;
+data cap71_raz.dat;
+option solver gurobi;
 solve;
 print "=======================================";
-print "Elaborazione file dati: cap71.dat";
+print "Elaborazione file dati: cap71_raz.dat";
 print "Soluzione intera ottima (IP) trovata con obj =", TotalCost;
 print " ";
-
+/*
 # Seconda istanza 977799
 reset;
 model ufl.mod;
@@ -40,7 +40,17 @@ data cap74.dat;
 option solver cplex;
 solve;
 print "=======================================";
-print "Elaborazione file dati: cap73.dat";
+print "Elaborazione file dati: cap74.dat";
 print "Soluzione intera ottima (IP) trovata con obj =", TotalCost;
 print " ";
+*/
 
+reset;
+model ufl.mod;
+data cap101.dat;
+option solver gurobi;
+solve;
+print "=======================================";
+print "Elaborazione file dati: cap101.dat";
+print "Soluzione intera ottima (IP) trovata con obj =", TotalCost;
+print " ";
