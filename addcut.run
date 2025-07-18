@@ -1,0 +1,9 @@
+
+model ufl_relax.mod;
+data cap101.dat;
+include cut_iter.mod;
+option cplex_options 'cuts=0';
+option solver cplex;
+solve;
+display TotalCost;
+        

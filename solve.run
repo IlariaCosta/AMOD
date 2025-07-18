@@ -1,0 +1,13 @@
+
+reset;
+model ufl_relax.mod;
+data cap101.dat;
+param obj_lp;
+option cplex_options 'cuts=0';
+option solver cplex;
+solve;
+printf {i in FACILITIES} "%s %f\n", i, y[i] > "y_sol.txt";
+let obj_lp := TotalCost;
+display obj_lp;
+display y;
+        
