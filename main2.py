@@ -36,8 +36,9 @@ def solve_with_gomory(ampl, all_cuts=True, max_iter=100):
         while True:
             ampl.set_option('gomory_cuts', 1)
             ampl.solve()
+            
             iter_count += 1
-            var_values = list(ampl.get_variable('x').get_values().to_dict().values())
+            var_values = list(ampl.get_variable('x').get_values().to_dict().values())[1]
             if is_integral(var_values) or iter_count >= max_iter:
                 break
         elapsed = time.time() - t0
@@ -54,8 +55,11 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
     ampl.set_option('cplex_options', 'mipgap=0')
     t0 = time.time()
     ampl.solve()
+    
     time_int = time.time() - t0
+    
     obj_int = ampl.obj['TotalCost'].value()
+    
 
     # 2. Rilassamento lineare con modello già rilassato
     ampl_relax = AMPL()
@@ -65,11 +69,19 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
 
     t0 = time.time()
     ampl_relax.solve()
-    time_relax = time.time() - t0
-    obj_relax = ampl_relax.obj['TotalCost'].value()
-    gap_relax = compute_gap(obj_relax, obj_int)
+    y_vals = ampl_relax.get_variable('y').get_values().to_dict()
+    print("Valori di y:")
+    for idx, val in y_vals.items():
+        print(f"y[{idx}] = {val}")
 
+    time_relax = time.time() - t0
+    
+    obj_relax = ampl_relax.obj['TotalCost'].value()
+    
+    gap_relax = compute_gap(obj_relax, obj_int)
+    
     x_vals = list(ampl_relax.get_variable('x').get_values().to_dict().values())
+    
     already_integer = is_integral(x_vals)
 
     if already_integer:
@@ -138,6 +150,7 @@ def main():
         except Exception as e:
             print(f"❌ Errore su {ist}: {e}")
             risultati.append({"istanza": ist, "nota": f"Errore: {e}"})
+            return
 
     # Scrittura CSV
     if risultati:
