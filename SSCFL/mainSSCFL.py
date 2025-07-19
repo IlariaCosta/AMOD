@@ -60,27 +60,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100):
          print(f"\nIterazione {iter_count}: valore soluzione = {ampl.obj['TotalCost'].value()}")
 
          cut_added = False
-            #  for i, val in y_vals.items():
-            #     if val > 0 and val < 1 :
-            #         floor_val = int(val)
-            #         cut_name = f"gomory_cut_{iter_count}_{i}"
-            #         ampl.eval(f"subject to {cut_name}: y[{i}] <= {floor_val};")
-            #         print(f"➕ Aggiunto taglio {cut_name}: y[{i}] <= {floor_val}")
-            #         cut_added = True
-            #         break
-
-            #  for i, val in x_vals.items():
-            #     if val > 0 and val < 1 :
-            #         floor_val = int(val)
-            #         i_str = "_".join(str(k) for k in i)
-            #         cut_name = f"gomory_cut_{iter_count}_{i_str}"
-            #         ampl.eval(f"subject to {cut_name}: x[{i[0]}, {i[1]}] <= {floor_val};")
-            #         print(f"➕ Aggiunto taglio {cut_name}: x[{i[0]}, {i[1]}] <= {floor_val}")
-            #         cut_added = True
-            #         break
-
-         EPSILON = 1e-5  # tolleranza per verificare se una variabile è frazionaria
-
+        
          # ➤ Cerca frazionarie in y
          for i, val in y_vals.items():
             if 0 < val < 1 :
