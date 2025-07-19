@@ -1,0 +1,58 @@
+reset;
+model sscfl_relax.mod;
+data cap41.dat;
+
+
+param max_violation;
+param j_max;
+param i_max;
+#set CUTS dimen 2 := {};
+set FRAZx dimen 2;
+set FRAZy;
+param CUTS_Added;
+param k ;
+let k := 1;
+repeat {
+    option solver cplex;
+    solve;
+
+    printf "\nITERAZIONE %d\n", k;
+
+    let CUTS_Added := 0;   # contatore tagli aggiunti in questa iterazione
+
+    # Cerca un taglio x
+    for {j in CLIENTS, i in FACILITIES: CUTS_Added = 0} {
+        if (x[j,i] > 0 && x[j,i] < 1) then {
+            let CUTS := CUTS union {card(CUTS)+1};
+            let cut_j[card(CUTS)] := j;
+            let cut_i[card(CUTS)] := i;
+            let rhs[card(CUTS)] := 0;
+            let cut_type[card(CUTS)] := "x";
+            printf "➕ Taglio aggiunto: x[%d,%d] = %.4f\n", j, i, x[j,i];
+            let CUTS_Added := 1;
+            break;
+        }
+    }
+
+    # Se non è stato aggiunto alcun taglio su x, prova su y
+    if CUTS_Added = 0 then {
+        for {i in FACILITIES: CUTS_Added = 0} {
+            if (y[i] > 0 && y[i] < 1) then {
+                let CUTS := CUTS union {card(CUTS)+1};
+                let cut_j[card(CUTS)] := 0;  # valore fittizio per j
+                let cut_i[card(CUTS)] := i;
+                let rhs[card(CUTS)] := 0;
+                let cut_type[card(CUTS)] := "y";
+                printf "➕ Taglio aggiunto: y[%d] = %.4f\n", i, y[i];
+                let CUTS_Added := 1;
+            }
+        }
+    }
+    let k := k+1;
+/*
+    if CUTS_Added = 0 then {
+        printf "✅ Nessun taglio violato. Termino.\n";
+        break;
+    }*/
+} until CUTS_Added = 0;
+printf "✅ Nessun taglio violato. Termino.\n";

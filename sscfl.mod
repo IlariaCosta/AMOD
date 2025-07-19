@@ -1,6 +1,6 @@
 set FACILITIES;
 set CLIENTS;
-
+set CUTS;
 param f {FACILITIES} >= 0;                # costo apertura facility
 param d {CLIENTS} >= 0;                   # domanda cliente
 param c {CLIENTS, FACILITIES} >= 0;      # costo trasporto cliente-facility

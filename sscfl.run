@@ -3,7 +3,7 @@ model sscfl.mod;
 data cap41.dat;
 
 option solver cplex;
-option cplex_options 'cuts=0';
+#option cplex_options 'cuts=0';
 solve;
 print "=======================================";
 print "Elaborazione file dati: cap101.dat";
