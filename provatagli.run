@@ -6,7 +6,9 @@ param max_violation;
 param j_max;
 param i_max;
 #set CUTS dimen 2 := {};
-set FRAZ dimen 2;
+set FRAZx dimen 2;
+set FRAZy;
+
 
 for {k in 1..10}  {
 	option solver cplex;
@@ -16,34 +18,47 @@ for {k in 1..10}  {
 
     # Controlla violazione taglio (es. esempio fittizio, puoi mettere qui le tue condizioni)
     let max_violation := 0;
-    let j_max := 0;
-    let i_max := 0;
-	let FRAZ := {};
+	let FRAZx := {};
+	let FRAZy := {};
+	#display y;
+	#display x;
+	# taglio per x
     for {j in CLIENTS, i in FACILITIES} {
-        if ((x[j,i] > 0 && x[j,i] < 1) || (y[i] > 0 && y[i] < 1))  then {
-            let max_violation := 1;
-            let j_max := j;
-            let i_max := i;
-        }
-    }
+	    if (x[j,i] > 0 && x[j,i] < 1 ) then {
+	        let FRAZx := FRAZx union {(j,i)};
+	    }
+	}
+	# taglio per y
+	for {i in FACILITIES} {
+	    if (y[i] > 0 && y[i] < 1) then {
+	        let FRAZy := FRAZy union {i};
+	    }
+	}
+	
+	if card(FRAZx) + card(FRAZy) = 0 then {
+	    printf "✅ Nessun taglio violato. Termino.\n";
+	    break;
+	}
 
-    if max_violation = 1 then {
-        printf "➕ Tagli aggiunti sulle variabili frazionarie:\n";
-        # Aggiungi un taglio per ciascuna variabile frazionaria trovata
-        for {(j,i) in FRAZ} {
-            let CUTS := CUTS union {card(CUTS)+1};
-			let cut_j[card(CUTS)] := j_max;
-			let cut_i[card(CUTS)] := i_max;
-			let coeff[card(CUTS)] := 1;
-			let rhs[card(CUTS)] := 0;
 
-        }
-        printf "➕ Taglio aggiunto: x[%d,%d] = %.4f\n", j_max, i_max, x[j_max,i_max];
-        
-    }
-    else {
-        printf "✅ Nessun taglio violato. Termino.\n";
-        break;
-    }
+    # Tagli per x
+	for {(j,i) in FRAZx} {
+	    let CUTS := CUTS union {card(CUTS)+1};
+	    let cut_j[card(CUTS)] := j;
+	    let cut_i[card(CUTS)] := i;
+	    let rhs[card(CUTS)] := 0;
+	    let cut_type[card(CUTS)] := "x";   # <-- importante
+	    printf "➕ Taglio aggiunto: x[%d,%d] = %.4f\n", j, i, x[j,i];
+	}
+	
+	# Tagli per y (esempio taglio y[i] <= 0)
+	for {i in FRAZy} {
+	    let CUTS := CUTS union {card(CUTS)+1};
+	    let cut_j[card(CUTS)] := 0;  # o qualche valore fittizio, serve solo per indicizzare
+	    let cut_i[card(CUTS)] := i;
+	    let rhs[card(CUTS)] := 0;
+	    let cut_type[card(CUTS)] := "y";   # <-- importante
+	    printf "➕ Taglio aggiunto: y[%d] = %.4f\n", i, y[i];
+	}
     
 }

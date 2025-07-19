@@ -11,8 +11,10 @@ param d {CLIENTS} >= 0;                   # domanda cliente
 param c {CLIENTS, FACILITIES} >= 0;      # costo trasporto cliente-facility
 param capacity {FACILITIES} >= 0;         # capacità facility
 
-var x {CLIENTS, FACILITIES} >= 0;       # assegnazione clienti (single source)
-var y {FACILITIES} >= 0;                 # apertura facility
+param cut_type {CUTS} symbolic;
+
+var x {CLIENTS, FACILITIES} >= 0, <=1;       # assegnazione clienti (single source)
+var y {FACILITIES} >= 0, <=1;                 # apertura facility
 
 # Ogni cliente è assegnato a una sola facility
 s.t. Assign {j in CLIENTS}:
@@ -30,8 +32,11 @@ s.t. Capacity {i in FACILITIES}:
 param coeff {CUTS} default 0;
 param rhs {CUTS};
 
-s.t. Cuts {k in CUTS}:
-    coeff[k] * x[cut_j[k], cut_i[k]] <= rhs[k];
+s.t. Cuts_x {k in CUTS: cut_type[k] = "x"}:
+    x[cut_j[k], cut_i[k]] <= rhs[k];
+
+s.t. Cuts_y {k in CUTS: cut_type[k] = "y"}:
+    y[cut_i[k]] <= rhs[k];
 
 # Funzione obiettivo: costi apertura + costi trasporto
 minimize TotalCost:
