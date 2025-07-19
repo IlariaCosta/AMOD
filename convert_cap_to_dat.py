@@ -36,7 +36,14 @@ def convert_cap_file_to_ampl_dat(input_file, output_file="output.dat"):
         for i, (_, fixed_cost) in enumerate(facilities):
             out.write(f"  {i+1} {fixed_cost}\n")
         out.write(";\n\n")
+        
+        out.write("param capacity :=\n")
+        for i, (capacity, _) in enumerate(facilities):
+            val = int(capacity) if (isinstance(capacity, float) and capacity.is_integer()) else capacity
+            out.write(f"  {i+1} {val}\n")
 
+        out.write(";\n\n")
+        
         out.write("param d :=\n")
         for j, demand in enumerate(demands):
             out.write(f"  {j+1} {demand}\n")
@@ -50,11 +57,11 @@ def convert_cap_file_to_ampl_dat(input_file, output_file="output.dat"):
     print(f"✔ Conversione completata: {output_file}")
 
 # Esegui direttamente
-convert_cap_file_to_ampl_dat("cap71.txt", "cap71.dat")
-convert_cap_file_to_ampl_dat("cap72.txt", "cap72.dat")
-convert_cap_file_to_ampl_dat("cap73.txt", "cap73.dat")
-convert_cap_file_to_ampl_dat("cap74.txt", "cap74.dat")
-convert_cap_file_to_ampl_dat("cap101.txt", "cap101.dat")
-convert_cap_file_to_ampl_dat("cap102.txt", "cap102.dat")
-convert_cap_file_to_ampl_dat("cap103.txt", "cap103.dat")
-convert_cap_file_to_ampl_dat("cap104.txt", "cap104.dat")
+convert_cap_file_to_ampl_dat("cap41.txt", "cap41.dat")
+convert_cap_file_to_ampl_dat("cap42.txt", "cap42.dat")
+convert_cap_file_to_ampl_dat("cap43.txt", "cap43.dat")
+# convert_cap_file_to_ampl_dat("cap74.txt", "cap74.dat")
+# convert_cap_file_to_ampl_dat("cap101.txt", "cap101.dat")
+# convert_cap_file_to_ampl_dat("cap102.txt", "cap102.dat")
+# convert_cap_file_to_ampl_dat("cap103.txt", "cap103.dat")
+# convert_cap_file_to_ampl_dat("cap104.txt", "cap104.dat")

@@ -1,6 +1,6 @@
 reset;
 model ufl.mod;
-
+/*
 # Prima istanza 932615
 data cap71_raz.dat;
 option solver gurobi;

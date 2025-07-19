@@ -1,0 +1,49 @@
+reset;
+model sscfl_relax.mod;
+data cap41.dat;
+
+param max_violation;
+param j_max;
+param i_max;
+#set CUTS dimen 2 := {};
+set FRAZ dimen 2;
+
+for {k in 1..10}  {
+	option solver cplex;
+    solve;
+
+    printf "\nITERAZIONE %d\n", k;
+
+    # Controlla violazione taglio (es. esempio fittizio, puoi mettere qui le tue condizioni)
+    let max_violation := 0;
+    let j_max := 0;
+    let i_max := 0;
+	let FRAZ := {};
+    for {j in CLIENTS, i in FACILITIES} {
+        if ((x[j,i] > 0 && x[j,i] < 1) || (y[i] > 0 && y[i] < 1))  then {
+            let max_violation := 1;
+            let j_max := j;
+            let i_max := i;
+        }
+    }
+
+    if max_violation = 1 then {
+        printf "➕ Tagli aggiunti sulle variabili frazionarie:\n";
+        # Aggiungi un taglio per ciascuna variabile frazionaria trovata
+        for {(j,i) in FRAZ} {
+            let CUTS := CUTS union {card(CUTS)+1};
+			let cut_j[card(CUTS)] := j_max;
+			let cut_i[card(CUTS)] := i_max;
+			let coeff[card(CUTS)] := 1;
+			let rhs[card(CUTS)] := 0;
+
+        }
+        printf "➕ Taglio aggiunto: x[%d,%d] = %.4f\n", j_max, i_max, x[j_max,i_max];
+        
+    }
+    else {
+        printf "✅ Nessun taglio violato. Termino.\n";
+        break;
+    }
+    
+}

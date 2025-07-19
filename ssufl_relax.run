@@ -1,8 +1,10 @@
 reset;
-model ufl_relax.mod;
+model sscfl_relax.mod;
 
-data cap101.dat;
-param obj_opt = 932615;
+data cap41.dat;
+param obj_opt = 945566.0875;
+
+let CUTS := {};
 
 /*
 data cap72.dat;
@@ -27,7 +29,7 @@ param TOL := 1e-5;        # tolleranza per controllo interezza variabili
 
 
     print "=======================================";
-    print "Elaborazione file dati cap101";
+    print "Elaborazione file dati cap41";
 
     
     # Disabilito tagli Gomory nel solver
@@ -49,12 +51,14 @@ param TOL := 1e-5;        # tolleranza per controllo interezza variabili
     if frac_found = 0 then {
         print "Soluzione rilassata è già intera!", obj_lp;
         display y;
+        display x;
     }
     else 
     {
     	print "Soluzione rilassata frazionaria. =", obj_lp;
     	print "Gap relativo rispetto IP: ", (obj_lp - obj_opt);
     	display y;
+    	display x;
     }
 
    
@@ -117,6 +121,7 @@ param TOL := 1e-5;        # tolleranza per controllo interezza variabili
     solve;
 	
 	display y;
+	display x;
     param obj_gomory_all;
     let obj_gomory_all := TotalCost;
 

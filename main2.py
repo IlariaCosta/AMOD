@@ -10,21 +10,28 @@ def compute_gap(relaxed_val, optimal_val):
     return abs((relaxed_val - optimal_val) / optimal_val) * 100
  
 def solve_with_gomory(ampl, all_cuts, max_iter=100):
-    #for var in ampl.get_variables().values():
-    #    if var.num_instances() > 1:
-    #        for i in var.get_values().index():
-     #           var[i].set_integer(False)
-    #    else:
-    #        var.set_integer(False)
-   
+    # for var in ampl.get_variables().value():
+        # if var.is_integer():
+            # var.set_integer(False)
+    variables = ampl.get_variables()
+    for var_name in variables.keys():
+        var = variables[var_name]
+        try:
+            if var.is_integer():
+                var.set_integer(False)
+        except:
+            continue
 
-    
+
+
     ampl.set_option('presolve', 0)
     ampl.set_option('cut_generation', 'gomory')
     ampl.set_option('solver', 'cplex')
- 
+    ampl.set_option('display', 1)
+
     if all_cuts:
         ampl.set_option('gomory_cuts', -1)  # all available
+        
         t0 = time.time()
         ampl.solve()
         elapsed = time.time() - t0
@@ -84,12 +91,28 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
     obj_int = ampl.obj['TotalCost'].value()
     
 
-    # 2. Rilassamento lineare con modello già rilassato
+   # 2. Rilassamento ottenuto da modello intero
     ampl_relax = AMPL()
     ampl_relax.set_option('solver', 'cplex')
-    ampl_relax.read(mod_path_relax)
+    ampl_relax.read(mod_path_int)
     ampl_relax.read_data(data_path)
 
+    # 🔁 Rilassa da Python tutte le variabili intere
+    # for var in ampl_relax.get_variables().value():
+        # if var.is_integer():
+            # var.set_integer(False)
+    variables = ampl.get_variables()
+    for var_name in variables.keys():
+        var = variables[var_name]
+        try:
+            if var.is_integer():
+                var.set_integer(False)
+        except:
+            continue
+
+
+
+    
     t0 = time.time()
     ampl_relax.solve()
     y_vals = ampl_relax.get_variable('y').get_values().to_dict()
