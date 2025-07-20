@@ -1,2 +1,2 @@
-istanza,obj_int,time_int,obj_relax,time_relax,gap_relax,obj_gomory_all,time_gomory_all,iter_gomory_all,gap_gomory_all,nota
-cap42.dat,1013664.175,0.14461684226989746,1001278.088205,0.021632909774780273,1.2219122565912928,1001278.088205,0.023049116134643555,1,1.2219122565912928,
+istanza,obj_int,time_int,obj_relax,time_relax,gap_relax,obj_gomory_all,time_gomory_all,iter_gomory_all,gap_gomory_all,obj_gomory_step,time_gomory_step,iter_gomory_step,gap_gomory_step,nota
+cap42.dat,1013664.175,0.12923288345336914,1001278.088205,0.019851207733154297,1.2219122565912928,1001278.088205,0.020308971405029297,1,1.2219122565912928,1001278.088205,0.13194489479064941,6,1.2219122565912928,

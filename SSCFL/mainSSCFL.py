@@ -8,6 +8,10 @@ def is_integral(var_values):
  
 def compute_gap(relaxed_val, optimal_val):
     return abs((relaxed_val - optimal_val) / optimal_val) * 100
+
+#*************************#
+#   ---    GOMORY   ---   #
+#*************************#
  
 def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
     variables = ampl.get_variables()
@@ -27,7 +31,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
     already_cut = set()
 
     if all_cuts:
-        print("GOMORY CUTS TUTTI INSIEME\n")
+        print("\nGOMORY CUTS TUTTI INSIEME\n")
         ampl.set_option('gomory_cuts', -1)  # all available
         
         t0 = time.time()
@@ -40,7 +44,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
         return obj, elapsed, 1
     else:
         # un taglio per volta
-        print("GOMORY CUTS UNO ALLA VOLTA\n")
+        print("\nGOMORY CUTS UNO ALLA VOLTA\n")
         iter_count = 0
         no_progress_count = 0  # Conta quante iterazioni con miglioramento trascurabile
         prev_obj = float('inf')
@@ -121,7 +125,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
 
 
          if no_progress_count >= 5:
-            print("🛑 Terminato: 5 iterazioni senza miglioramento e senza nuovi tagli.")
+            print("🛑 Terminato: 5 iterazioni senza miglioramento.")
             break
 
         
@@ -131,8 +135,12 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
         obj = ampl.obj['TotalCost'].value()
         return obj, elapsed, iter_count
     
+
+#*************************#
+#   ---     SSCFL   ---   #
+#*************************#
  
-def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
+def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # 1. Soluzione ottima intera
     print("Soluzione intera ->");
     ampl = AMPL()
@@ -147,8 +155,7 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
     time_int = time.time() - t0
     
     obj_int = ampl.obj['TotalCost'].value()
-    print ("%d\n", obj_int);
-    
+
 
    # 2. Rilassamento ottenuto da modello intero
     print("Soluzione rilassata ->");
@@ -178,7 +185,6 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
     time_relax = time.time() - t0
     
     obj_relax = ampl_relax.obj['TotalCost'].value()
-    print("%d\n", obj_relax)
     
     gap_relax = compute_gap(obj_relax, obj_int)
     
@@ -192,7 +198,7 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
 
 
     if already_integer:
-        print ("SOLUZIONE INTERA\n");
+        print ("SOLUZIONE GIA' INTERA\n");
         return {
             "istanza": os.path.basename(data_path),
             "obj_int": obj_int,
@@ -211,7 +217,7 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
             "nota": "Relax già intero"
         }
 
-    print("***** GOMORY CUTS *****");
+    print("\n***** GOMORY CUTS *****");
     # 3. Gomory: tutti i tagli
     ampl_all = AMPL()
     ampl_all.read(mod_path_relax)
@@ -241,14 +247,18 @@ def run_ufl_experiment(mod_path_int, mod_path_relax, data_path):
         "time_gomory_all": time_all,
         "iter_gomory_all": iter_all,
         "gap_gomory_all": gap_all,
-        #  "obj_gomory_step": obj_step,
-        # "time_gomory_step": time_step,
-        # "iter_gomory_step": iter_step,
-        #  "gap_gomory_step": gap_step,
+         "obj_gomory_step": obj_step,
+        "time_gomory_step": time_step,
+        "iter_gomory_step": iter_step,
+         "gap_gomory_step": gap_step,
         "nota": ""
     }
 
- 
+
+#*************************#
+#   ---     MAIN    ---   #
+#*************************#
+
 def main():
     modello_intero = "sscfl.mod"
     modello_relax = "sscfl_relax.mod"
@@ -259,7 +269,7 @@ def main():
     for ist in istanze:
         print(f"\n🔄 Elaborazione {ist}...")
         try:
-            res = run_ufl_experiment(modello_intero, modello_relax, ist)
+            res = run_sscfl_experiment(modello_intero, modello_relax, ist)
             risultati.append(res)
         except Exception as e:
             print(f"❌ Errore su {ist}: {e}")
@@ -273,10 +283,15 @@ def main():
             writer.writeheader()
             writer.writerows(risultati)
     print("\n✅ Tutto completato. Risultati salvati in risultati_ufl.csv.")
+
+    # Risultati finali
     print("Risultati finali:")
     for res in risultati:
-        print(res)
-        print("\n")
+        max_len = max(len(k) for k in res.keys())  # per allineare i due punti
+        for key, value in res.items():
+            print(f"{key.ljust(max_len)} : {value}")
+        print("-" * 40)
+
 
 
 
