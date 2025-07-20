@@ -54,7 +54,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
          ampl.solve()
          iter_count += 1
          if iter_count > max_iter:
-            print("⚠️ Raggiunto numero massimo iterazioni. Termino.")
+            print("Raggiunto numero massimo iterazioni. Termino.")
             break
 
          y_vals = ampl.get_variable('y').get_values().to_dict()
@@ -75,7 +75,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
                 if abs(val - round(val)) > 1e-5:
                     bound = ">= 1" if val > 0.5 else "<= 0.5"
                     ampl.eval(f"subject to cut_y_{iter_count}_{i}: y[{i}] {bound};")
-                    print(f"➕ Taglio: y[{i}] {bound} (valore attuale = {val})")
+                    print(f"Taglio: y[{i}] {bound} (valore attuale = {val})")
                     already_cut.add(i)
                     cut_added = True
                     break  # SOLO UNO PER ITERAZIONE
@@ -88,7 +88,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
                             i_str = "_".join(str(k) for k in i)
                             bound = ">= 1" if val > 0.5 else "<= 0.5"
                             ampl.eval(f"subject to cut_x_{iter_count}_{i_str}: x[{i[0]}, {i[1]}] {bound};")
-                            print(f"➕ Taglio: x[{i[0]}, {i[1]}] {bound} (valore attuale = {val})")
+                            print(f"Taglio: x[{i[0]}, {i[1]}] {bound} (valore attuale = {val})")
                             already_cut.add(i)
                             cut_added = True
                             break  # SOLO UNO PER ITERAZIONE
@@ -97,7 +97,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
 
 
          if not cut_added:
-            print("✅ Nessuna variabile frazionaria trovata, soluzione intera raggiunta.")
+            print(" Nessuna variabile frazionaria trovata, soluzione intera raggiunta.")
             # print("Valori di y:")
             # for idx, val in y_vals.items():
             #     print(f"y[{idx}] = {val}")
@@ -108,7 +108,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
             #     print(f"x[{idx}] = {val}")
             # print("\n")
 
-            print("🔎 Variabili frazionarie:")
+            print("Variabili frazionarie:")
             for i, val in y_vals.items():
                 if abs(val - round(val)) > 1e-5:
                     print(f"y[{i}] = {val}")
@@ -119,13 +119,13 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
          
          if improvement < min_improvement:
                 no_progress_count += 1
-                print(f"⚠️ Nessun miglioramento. ({no_progress_count}/5)") 
+                print(f"Nessun miglioramento. ({no_progress_count}/5)") 
          else:
             no_progress_count = 0  # Reset se c'è miglioramento
 
 
          if no_progress_count >= 5:
-            print("🛑 Terminato: 5 iterazioni senza miglioramento.")
+            print("Terminato: 5 iterazioni senza miglioramento.")
             break
 
         
@@ -164,7 +164,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     ampl_relax.read(mod_path_relax)
     ampl_relax.read_data(data_path)
 
-    # 🔁 Rilassa da Python tutte le variabili intere
+    # Rilassa da Python tutte le variabili intere
     variables = ampl_relax.get_variables()
     for var in variables:
          try:
@@ -265,14 +265,14 @@ def main():
     istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith(".dat")])
     print("File .dat trovati:", istanze)
     risultati = []
-    istanze = istanze[1:2]
+    #istanze = istanze[1:2]
     for ist in istanze:
-        print(f"\n🔄 Elaborazione {ist}...")
+        print(f"\nElaborazione {ist}...")
         try:
             res = run_sscfl_experiment(modello_intero, modello_relax, ist)
             risultati.append(res)
         except Exception as e:
-            print(f"❌ Errore su {ist}: {e}")
+            print(f"Errore su {ist}: {e}")
             risultati.append({"istanza": ist, "nota": f"Errore: {e}"})
             return
 
@@ -282,7 +282,7 @@ def main():
             writer = csv.DictWriter(f, fieldnames=risultati[0].keys())
             writer.writeheader()
             writer.writerows(risultati)
-    print("\n✅ Tutto completato. Risultati salvati in risultati_ufl.csv.")
+    print("\nTutto completato. Risultati salvati in risultati_ufl.csv.")
 
     # Risultati finali
     print("Risultati finali:")
