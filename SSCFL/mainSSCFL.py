@@ -278,11 +278,11 @@ def main():
 
     # Scrittura CSV
     if risultati:
-        with open("risultati_ufl.csv", "w", newline="") as f:
+        with open("risultati_sscfl.csv", "w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=risultati[0].keys())
             writer.writeheader()
             writer.writerows(risultati)
-    print("\nTutto completato. Risultati salvati in risultati_ufl.csv.")
+    print("\nTutto completato. Risultati salvati in risultati_sscfl.csv.")
 
     # Risultati finali
     print("Risultati finali:")
