@@ -9,8 +9,114 @@ def is_integral(var_values):
 def compute_gap(relaxed_val, optimal_val):
     return abs((relaxed_val - optimal_val) / optimal_val) * 100
 
+def parse_dat_file(filepath):
+    with open(filepath, "r") as f:
+        lines = f.readlines()
+
+    facilities = []
+    clients = []
+    f_param = {}
+    c_param = []
+
+    reading = None
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if line.startswith("set FACILITIES"):
+            facilities = list(map(int, line.split(":=")[1].replace(";", "").split()))
+            continue
+        elif line.startswith("set CLIENTS"):
+            clients = list(map(int, line.split(":=")[1].replace(";", "").split()))
+            continue
+        elif line.startswith("param f"):
+            reading = "f"
+            continue
+        elif line.startswith("param c"):
+            reading = "c"
+            c_param = []
+            continue
+        elif line.startswith("param d"):
+            reading = None  # ignoriamo
+            continue
+
+        # Lettura dei costi f
+        if reading == "f":
+            if ";" in line:
+                line = line.replace(";", "")
+                reading = None
+            parts = line.split()
+            if len(parts) == 2:
+                f_param[int(parts[0])] = float(parts[1])  # <- float qui
+
+        # Lettura della matrice dei costi c
+        elif reading == "c":
+            if ":=" in line:
+                continue
+            if ";" in line:
+                line = line.replace(";", "")
+                if line.strip():
+                    c_param.append(list(map(float, line.split())))  # <- float qui
+                reading = None
+            else:
+                if line.strip():
+                    c_param.append(list(map(float, line.split())))  # <- float qui
+
+    # Ordina f_param secondo l'ordine dei facilities
+    f_vector = [f_param[i] for i in sorted(facilities)]
+    return facilities, clients, f_vector, c_param
+
+def build_A_b(facilities, clients):
+    m = len(facilities)
+    n = len(clients)
+
+    var_count = m * n + m
+    row_count = n + m * n
+
+    A = [[0 for _ in range(var_count)] for _ in range(row_count)]
+    b = [0 for _ in range(row_count)]
+
+    def x_index(i, j):
+        return i * n + j
+
+    def y_index(i):
+        return m * n + i
+
+    # Cliente j deve essere assegnato a una sola facility
+    for j in range(n):
+        for i in range(m):
+            A[j][x_index(i, j)] = 1
+        b[j] = 1
+
+    # x_ij ≤ y_i
+    row = n
+    for i in range(m):
+        for j in range(n):
+            A[row][x_index(i, j)] = 1
+            A[row][y_index(i)] = -1
+            b[row] = 0
+            row += 1
+
+    print("A e b pronte\n")
+
+    # # Stampa matrice A
+    # print("Matrice A:")
+    # for row in A:
+    #     print(row)
+
+    # # Stampa vettore b
+    # print("\nVettore b:")
+    # print(b)
+
+    return A, b
+
+
+
+
 #*************************#
-#   ---    GOMORY   ---   #
+#   ---    GOMORY   ---   # -------------------------------------------------------------------------------------------------
 #*************************#
  
 def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
@@ -157,7 +263,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     obj_int = ampl.obj['TotalCost'].value()
 
 
-   # 2. Rilassamento ottenuto da modello intero
+    # 2. Rilassamento ottenuto da modello intero
     print("Soluzione rilassata ->");
     ampl_relax = AMPL()
     ampl_relax.set_option('solver', 'cplex')
@@ -219,22 +325,41 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
     print("\n***** GOMORY CUTS *****");
     # 3. Gomory: tutti i tagli
-    ampl_all = AMPL()
-    ampl_all.read(mod_path_relax)
-    ampl_all.read_data(data_path)
-    obj_all, time_all, iter_all = solve_with_gomory(ampl_all, all_cuts=True)
-    gap_all = compute_gap(obj_all, obj_int)
-    print(f"Obj rilassato: {obj_relax}")
-    print(f"Obj dopo tagli Gomory: {obj_all}")
-    print(f"Gap Gomory all: {gap_all:.4f}%")
+    # ampl_all = AMPL()
+    # ampl_all.read(mod_path_relax)
+    # ampl_all.read_data(data_path)
+    # obj_all, time_all, iter_all = solve_with_gomory(ampl_all, all_cuts=True)
+    # gap_all = compute_gap(obj_all, obj_int)
+    # print(f"Obj rilassato: {obj_relax}")
+    # print(f"Obj dopo tagli Gomory: {obj_all}")
+    # print(f"Gap Gomory all: {gap_all:.4f}%")
 
 
     # 4. Gomory: uno alla volta
-    ampl_step = AMPL()
-    ampl_step.read(mod_path_relax)
-    ampl_step.read_data(data_path)
-    obj_step, time_step, iter_step = solve_with_gomory(ampl_step, all_cuts=False)
-    gap_step = compute_gap(obj_step, obj_int)
+    # ampl_step = AMPL()
+    # ampl_step.read(mod_path_relax)
+    # ampl_step.read_data(data_path)
+    # obj_step, time_step, iter_step = solve_with_gomory(ampl_step, all_cuts=False)
+    # gap_step = compute_gap(obj_step, obj_int)
+    #-----------------------------------------------------------------------------------------------------------------------
+
+    # Costruzione A, b
+    print("ORA CALCOLO A E B \n");
+    facilities, clients, f_vector, _ = parse_dat_file(data_path)
+    A, b_vec = build_A_b(facilities, clients)
+
+    # Ricava il nome base del file (senza estensione .dat)
+    basename = os.path.splitext(os.path.basename(data_path))[0]
+
+    # Salvataggio di A e b
+    with open(f"A_{basename}.txt", "w") as fa:
+        for row in A:
+            fa.write(" ".join(map(str, row)) + "\n")
+
+    with open(f"b_{basename}.txt", "w") as fb:
+        fb.write("\n".join(map(str, b_vec)))
+
+
 
     return {
         "istanza": os.path.basename(data_path),
@@ -243,14 +368,14 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         "obj_relax": obj_relax,
         "time_relax": time_relax,
         "gap_relax": gap_relax,
-        "obj_gomory_all": obj_all,
-        "time_gomory_all": time_all,
-        "iter_gomory_all": iter_all,
-        "gap_gomory_all": gap_all,
-         "obj_gomory_step": obj_step,
-        "time_gomory_step": time_step,
-        "iter_gomory_step": iter_step,
-         "gap_gomory_step": gap_step,
+        # "obj_gomory_all": obj_all,
+        # "time_gomory_all": time_all,
+        # "iter_gomory_all": iter_all,
+        # "gap_gomory_all": gap_all,
+        #  "obj_gomory_step": obj_step,
+        # "time_gomory_step": time_step,
+        # "iter_gomory_step": iter_step,
+        #  "gap_gomory_step": gap_step,
         "nota": ""
     }
 
