@@ -49,7 +49,7 @@ def parse_dat_file(filepath):
                 reading = None
             parts = line.split()
             if len(parts) == 2:
-                f_param[int(parts[0])] = float(parts[1])  # <- float qui
+                f_param[int(parts[0])] = float(parts[1])  
 
         # Lettura della matrice dei costi c
         elif reading == "c":
@@ -58,11 +58,11 @@ def parse_dat_file(filepath):
             if ";" in line:
                 line = line.replace(";", "")
                 if line.strip():
-                    c_param.append(list(map(float, line.split())))  # <- float qui
+                    c_param.append(list(map(float, line.split())))  
                 reading = None
             else:
                 if line.strip():
-                    c_param.append(list(map(float, line.split())))  # <- float qui
+                    c_param.append(list(map(float, line.split())))  
 
     # Ordina f_param secondo l'ordine dei facilities
     f_vector = [f_param[i] for i in sorted(facilities)]
