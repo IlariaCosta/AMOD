@@ -11,8 +11,11 @@ from utils import (
     mat_vec_mul,
     mat_mul
 )
-
-import gomory
+from gomory import (
+    solve_with_gomory,
+    tagli
+)
+import cut
  
 
 
@@ -117,140 +120,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # gap_step = compute_gap(obj_step, obj_int)
     #-----------------------------------------------------------------------------------------------------------------------
 
-    # Costruzione A, b
-    print("ORA CALCOLO A E B \n");
-    #facilities, clients, f_vector, _ = parse_dat_file(data_path)
-    # Leggi direttamente dal file .dat
-    facilities, clients, f_vector, _ = parse_dat_file(data_path)
-    m = len(facilities)
-    n = len(clients)
-
-
-    A, b_vec = build_A_b(facilities, clients)
-
-    # Ricava il nome base del file (senza estensione .dat)
-    basename = os.path.splitext(os.path.basename(data_path))[0]
-
-    # Salvataggio di A e b
-    with open(f"A_{basename}.txt", "w") as fa:
-        for row in A:
-            fa.write(" ".join(map(str, row)) + "\n")
-
-    with open(f"b_{basename}.txt", "w") as fb:
-        fb.write("\n".join(map(str, b_vec)))
-
-    
-    # --- Ora procediamo a costruire B, N e fare i calcoli ---
-    # Ricava gli indici delle variabili basiche e non basiche
-    basic_indices = []
-    nonbasic_indices = []
-
-    # Assumiamo che ampl.getVariables() ti dia variabili in ordine di colonne di A
-    # Dovrai adattare se l'ordine è diverso
-
-    variables = ampl.get_variables()
-    basic_indices = []
-    nonbasic_indices = []
-    col_idx = 0
-
-    variables = ampl.get_variables()
-
-    print("Tipo variables:", type(variables))
-    print("variables:", variables)
-
-    # Proviamo a fare list() per vedere cosa contiene
-    variables_list = list(variables)
-    print("Lista variables:", variables_list)
-
-    for i, elem in enumerate(variables_list):
-        print(f"Elemento {i}: tipo {type(elem)} - valore {elem}")
-
-    # Se elem è una tupla (nome, Variable), possiamo usarlo:
-    for var_name, var in variables_list:
-        print(f"Var name: {var_name}, Var type: {type(var)}")
-
-
-    from amplpy import Solution
-
-    solution = Solution(ampl)
-
-    basic_indices = []
-    nonbasic_indices = []
-    col_idx = 0
-
-    variables_list = list(ampl.get_variables())
-
-    for var_name, var in variables_list:
-        print(f"var_name: {var_name}, tipo var: {type(var)}")
-        try:
-            keys = list(var.keys())
-            print(f"  keys: {keys}")
-        except Exception as e:
-            print(f"  Nessun keys() per {var_name}: {e}")
-            keys = None
-
-        if keys:
-            for idx in keys:
-                status = solution.get_var_status(var[idx])
-                print(f"  {var_name}[{idx}] status: {status}")
-                if status == 'Basic':
-                    basic_indices.append(col_idx)
-                else:
-                    nonbasic_indices.append(col_idx)
-                col_idx += 1
-        else:
-            try:
-                status = solution.get_var_status(var)
-                print(f"  {var_name} status (scalare): {status}")
-            except Exception as e:
-                print(f"  Errore get_var_status per {var_name}: {e}")
-                status = 'Nonbasic'
-            if status == 'Basic':
-                basic_indices.append(col_idx)
-            else:
-                nonbasic_indices.append(col_idx)
-            col_idx += 1
-
-    print("Basic indices:", basic_indices)
-    print("Nonbasic indices:", nonbasic_indices)
-
-
-
-
-
-
-
-    B = [[row[i] for i in basic_indices] for row in A]
-    N = [[row[i] for i in nonbasic_indices] for row in A]
-
-
-    # Inverti B
-    try:
-        B_inv = invert_matrix(B)
-    except ValueError:
-        print("⚠️ Matrice B non invertibile")
-        B_inv = None  # O gestisci l'errore come preferisci
-
-    if B_inv is not None:
-        # Calcola rhs = B_inv * b_vec
-        rhs = mat_vec_mul(B_inv, b_vec)
-
-        # Calcola -B_inv * N
-        BN = mat_mul(B_inv, N)
-        reduced_matrix = [[-x for x in row] for row in BN]
-
-        # Stampa per debug (opzionale)
-        print("rhs (B_inv * b):", rhs)
-        print("reduced_matrix (-B_inv * N):")
-        for r in reduced_matrix:
-            print(r)
-
-        # A questo punto puoi procedere a cercare la riga con la massima parte frazionaria e
-        # costruire il taglio di Gomory come da tua logica
-
-
-
-
+    tagli(ampl,mod_path_int, mod_path_relax, data_path)
+   
 
 
     return {
