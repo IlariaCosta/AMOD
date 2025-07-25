@@ -2,248 +2,22 @@ import time
 import csv
 import os
 from amplpy import AMPL, Environment
+from utils import (
+    compute_gap,
+    is_integral,
+    parse_dat_file,
+    build_A_b,
+    invert_matrix,
+    mat_vec_mul,
+    mat_mul
+)
+
+import gomory
  
-def is_integral(var_values):
-    return all(abs(val - round(val)) < 1e-8 for val in var_values)
- 
-def compute_gap(relaxed_val, optimal_val):
-    return abs((relaxed_val - optimal_val) / optimal_val) * 100
-
-def parse_dat_file(filepath):
-    with open(filepath, "r") as f:
-        lines = f.readlines()
-
-    facilities = []
-    clients = []
-    f_param = {}
-    c_param = []
-
-    reading = None
-
-    for line in lines:
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-
-        if line.startswith("set FACILITIES"):
-            facilities = list(map(int, line.split(":=")[1].replace(";", "").split()))
-            continue
-        elif line.startswith("set CLIENTS"):
-            clients = list(map(int, line.split(":=")[1].replace(";", "").split()))
-            continue
-        elif line.startswith("param f"):
-            reading = "f"
-            continue
-        elif line.startswith("param c"):
-            reading = "c"
-            c_param = []
-            continue
-        elif line.startswith("param d"):
-            reading = None  # ignoriamo
-            continue
-
-        # Lettura dei costi f
-        if reading == "f":
-            if ";" in line:
-                line = line.replace(";", "")
-                reading = None
-            parts = line.split()
-            if len(parts) == 2:
-                f_param[int(parts[0])] = float(parts[1])  
-
-        # Lettura della matrice dei costi c
-        elif reading == "c":
-            if ":=" in line:
-                continue
-            if ";" in line:
-                line = line.replace(";", "")
-                if line.strip():
-                    c_param.append(list(map(float, line.split())))  
-                reading = None
-            else:
-                if line.strip():
-                    c_param.append(list(map(float, line.split())))  
-
-    # Ordina f_param secondo l'ordine dei facilities
-    f_vector = [f_param[i] for i in sorted(facilities)]
-    return facilities, clients, f_vector, c_param
-
-def build_A_b(facilities, clients):
-    m = len(facilities)
-    n = len(clients)
-
-    var_count = m * n + m
-    row_count = n + m * n
-
-    A = [[0 for _ in range(var_count)] for _ in range(row_count)]
-    b = [0 for _ in range(row_count)]
-
-    def x_index(i, j):
-        return i * n + j
-
-    def y_index(i):
-        return m * n + i
-
-    # Cliente j deve essere assegnato a una sola facility
-    for j in range(n):
-        for i in range(m):
-            A[j][x_index(i, j)] = 1
-        b[j] = 1
-
-    # x_ij ≤ y_i
-    row = n
-    for i in range(m):
-        for j in range(n):
-            A[row][x_index(i, j)] = 1
-            A[row][y_index(i)] = -1
-            b[row] = 0
-            row += 1
-
-    print("A e b pronte\n")
-
-    # # Stampa matrice A
-    # print("Matrice A:")
-    # for row in A:
-    #     print(row)
-
-    # # Stampa vettore b
-    # print("\nVettore b:")
-    # print(b)
-
-    return A, b
-
-
 
 
 #*************************#
-#   ---    GOMORY   ---   # -------------------------------------------------------------------------------------------------
-#*************************#
- 
-def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
-    variables = ampl.get_variables()
-    for var in variables:   
-        try:
-          if var.is_integer():
-             var.set_integer(False)
-        except:
-         continue
-
-
-    ampl.set_option('presolve', 0)
-    ampl.set_option('cut_generation', 'gomory')
-    ampl.set_option('solver', 'cplex')
-    ampl.set_option('display', 1)
-
-    already_cut = set()
-
-    if all_cuts:
-        print("\nGOMORY CUTS TUTTI INSIEME\n")
-        ampl.set_option('gomory_cuts', -1)  # all available
-        
-        t0 = time.time()
-        ampl.solve()
-        elapsed = time.time() - t0
-        var_values = list(ampl.get_variable('y').get_values().to_dict().values())
-        print(var_values)
-     
-        obj = ampl.obj['TotalCost'].value()
-        return obj, elapsed, 1
-    else:
-        # un taglio per volta
-        print("\nGOMORY CUTS UNO ALLA VOLTA\n")
-        iter_count = 0
-        no_progress_count = 0  # Conta quante iterazioni con miglioramento trascurabile
-        prev_obj = float('inf')
-        t0 = time.time()
-
-        while True:
-         ampl.solve()
-         iter_count += 1
-         if iter_count > max_iter:
-            print("Raggiunto numero massimo iterazioni. Termino.")
-            break
-
-         y_vals = ampl.get_variable('y').get_values().to_dict()
-         x_vals = ampl.get_variable('x').get_values().to_dict()
-
-         obj_curr = ampl.obj['TotalCost'].value()
-         improvement = abs(prev_obj - obj_curr)
-
-         print(f"\nIterazione {iter_count}: valore soluzione = {obj_curr}, miglioramento = {improvement:.6f}")
-       
-         prev_obj = obj_curr
-
-         cut_added = False
-        
-         # ➤ Tagli per y (uno per volta)
-         for i, val in y_vals.items():
-                val_rounded = round(val)
-                if abs(val - round(val)) > 1e-5:
-                    bound = ">= 1" if val > 0.5 else "<= 0.5"
-                    ampl.eval(f"subject to cut_y_{iter_count}_{i}: y[{i}] {bound};")
-                    print(f"Taglio: y[{i}] {bound} (valore attuale = {val})")
-                    already_cut.add(i)
-                    cut_added = True
-                    break  # SOLO UNO PER ITERAZIONE
-
-         if not cut_added:
-         # ➤ Tagli per x (uno per volta)
-            for i, val in x_vals.items():
-                 val_rounded = round(val)
-                 if abs(val - round(val)) > 1e-5:
-                            i_str = "_".join(str(k) for k in i)
-                            bound = ">= 1" if val > 0.5 else "<= 0.5"
-                            ampl.eval(f"subject to cut_x_{iter_count}_{i_str}: x[{i[0]}, {i[1]}] {bound};")
-                            print(f"Taglio: x[{i[0]}, {i[1]}] {bound} (valore attuale = {val})")
-                            already_cut.add(i)
-                            cut_added = True
-                            break  # SOLO UNO PER ITERAZIONE
-
-
-
-
-         if not cut_added:
-            print("Nessuna variabile frazionaria trovata, soluzione intera raggiunta.")
-            # print("Valori di y:")
-            # for idx, val in y_vals.items():
-            #     print(f"y[{idx}] = {val}")
-            # print("\n")
-
-            # print("Valori di x:")
-            # for idx, val in x_vals.items():
-            #     print(f"x[{idx}] = {val}")
-            # print("\n")
-
-            print("Variabili frazionarie:")
-            for i, val in y_vals.items():
-                if abs(val - round(val)) > 1e-5:
-                    print(f"y[{i}] = {val}")
-            for i, val in x_vals.items():
-                if abs(val - round(val)) > 1e-5:
-                    print(f"x[{i}] = {val}")
-            break
-         
-         if improvement < min_improvement:
-                no_progress_count += 1
-                print(f"Nessun miglioramento. ({no_progress_count}/5)") 
-         else:
-            no_progress_count = 0  # Reset se c'è miglioramento
-
-
-         if no_progress_count >= 5:
-            print("Terminato: 5 iterazioni senza miglioramento.")
-            break
-
-        
-
-        
-        elapsed = time.time() - t0
-        obj = ampl.obj['TotalCost'].value()
-        return obj, elapsed, iter_count
-    
-
-#*************************#
-#   ---     SSCFL   ---   #
+#   ---     UFL     ---   #
 #*************************#
  
 def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
@@ -345,7 +119,13 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
     # Costruzione A, b
     print("ORA CALCOLO A E B \n");
+    #facilities, clients, f_vector, _ = parse_dat_file(data_path)
+    # Leggi direttamente dal file .dat
     facilities, clients, f_vector, _ = parse_dat_file(data_path)
+    m = len(facilities)
+    n = len(clients)
+
+
     A, b_vec = build_A_b(facilities, clients)
 
     # Ricava il nome base del file (senza estensione .dat)
@@ -358,6 +138,118 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
     with open(f"b_{basename}.txt", "w") as fb:
         fb.write("\n".join(map(str, b_vec)))
+
+    
+    # --- Ora procediamo a costruire B, N e fare i calcoli ---
+    # Ricava gli indici delle variabili basiche e non basiche
+    basic_indices = []
+    nonbasic_indices = []
+
+    # Assumiamo che ampl.getVariables() ti dia variabili in ordine di colonne di A
+    # Dovrai adattare se l'ordine è diverso
+
+    variables = ampl.get_variables()
+    basic_indices = []
+    nonbasic_indices = []
+    col_idx = 0
+
+    variables = ampl.get_variables()
+
+    print("Tipo variables:", type(variables))
+    print("variables:", variables)
+
+    # Proviamo a fare list() per vedere cosa contiene
+    variables_list = list(variables)
+    print("Lista variables:", variables_list)
+
+    for i, elem in enumerate(variables_list):
+        print(f"Elemento {i}: tipo {type(elem)} - valore {elem}")
+
+    # Se elem è una tupla (nome, Variable), possiamo usarlo:
+    for var_name, var in variables_list:
+        print(f"Var name: {var_name}, Var type: {type(var)}")
+
+
+    from amplpy import Solution
+
+    solution = Solution(ampl)
+
+    basic_indices = []
+    nonbasic_indices = []
+    col_idx = 0
+
+    variables_list = list(ampl.get_variables())
+
+    for var_name, var in variables_list:
+        print(f"var_name: {var_name}, tipo var: {type(var)}")
+        try:
+            keys = list(var.keys())
+            print(f"  keys: {keys}")
+        except Exception as e:
+            print(f"  Nessun keys() per {var_name}: {e}")
+            keys = None
+
+        if keys:
+            for idx in keys:
+                status = solution.get_var_status(var[idx])
+                print(f"  {var_name}[{idx}] status: {status}")
+                if status == 'Basic':
+                    basic_indices.append(col_idx)
+                else:
+                    nonbasic_indices.append(col_idx)
+                col_idx += 1
+        else:
+            try:
+                status = solution.get_var_status(var)
+                print(f"  {var_name} status (scalare): {status}")
+            except Exception as e:
+                print(f"  Errore get_var_status per {var_name}: {e}")
+                status = 'Nonbasic'
+            if status == 'Basic':
+                basic_indices.append(col_idx)
+            else:
+                nonbasic_indices.append(col_idx)
+            col_idx += 1
+
+    print("Basic indices:", basic_indices)
+    print("Nonbasic indices:", nonbasic_indices)
+
+
+
+
+
+
+
+    B = [[row[i] for i in basic_indices] for row in A]
+    N = [[row[i] for i in nonbasic_indices] for row in A]
+
+
+    # Inverti B
+    try:
+        B_inv = invert_matrix(B)
+    except ValueError:
+        print("⚠️ Matrice B non invertibile")
+        B_inv = None  # O gestisci l'errore come preferisci
+
+    if B_inv is not None:
+        # Calcola rhs = B_inv * b_vec
+        rhs = mat_vec_mul(B_inv, b_vec)
+
+        # Calcola -B_inv * N
+        BN = mat_mul(B_inv, N)
+        reduced_matrix = [[-x for x in row] for row in BN]
+
+        # Stampa per debug (opzionale)
+        print("rhs (B_inv * b):", rhs)
+        print("reduced_matrix (-B_inv * N):")
+        for r in reduced_matrix:
+            print(r)
+
+        # A questo punto puoi procedere a cercare la riga con la massima parte frazionaria e
+        # costruire il taglio di Gomory come da tua logica
+
+
+
 
 
 
@@ -378,6 +270,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         #  "gap_gomory_step": gap_step,
         "nota": ""
     }
+
 
 
 #*************************#
