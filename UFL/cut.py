@@ -10,51 +10,51 @@ columns=["name", "cluster_type", "nvar","nconstraints","optimal_sol","sol","sol_
 
 logging.basicConfig(filename='resolution.log', format='%(asctime)s - %(message)s',level=logging.INFO, datefmt='%d-%b-%y %H:%M:%S')
 
-def getProblemData(name: str) -> Tuple:
-    '''
-    This function extracts the raw data from a .txt file and populates the objective function coefficients
-    array, the constraints coefficients matrix A and the right hand side b array
+# def getProblemData(name: str) -> Tuple:
+#     '''
+#     This function extracts the raw data from a .txt file and populates the objective function coefficients
+#     array, the constraints coefficients matrix A and the right hand side b array
     
-    Arguments:
-        name -- the name of the .txt file that contains the raw data
+#     Arguments:
+#         name -- the name of the .txt file that contains the raw data
         
-    returns:
-        c -- objective function coefficients array (shape = 1 * n)
-        A -- constraints coefficients matrix A (shape = m * n)
-        b -- right hand side values (shape = 1 * m)
-    '''
-    # Opening .txt file in order to read the raw data of a problem instance
-    file = open(str(name), 'r')
-    x = []
-    for line in file:
-        splitLine = line.split()
-        for i in range(len(splitLine)):
-            x.append(splitLine[i])
-    file.close()
+#     returns:
+#         c -- objective function coefficients array (shape = 1 * n)
+#         A -- constraints coefficients matrix A (shape = m * n)
+#         b -- right hand side values (shape = 1 * m)
+#     '''
+#     # Opening .txt file in order to read the raw data of a problem instance
+#     file = open(str(name), 'r')
+#     x = []
+#     for line in file:
+#         splitLine = line.split()
+#         for i in range(len(splitLine)):
+#             x.append(splitLine[i])
+#     file.close()
     
-    # Define parameters
-    NumColumns, NumRows = int(x.pop(0)), int(x.pop(0))
-    logging.info('This instance has %d variables and %d constraints' %(NumColumns, NumRows))
+#     # Define parameters
+#     NumColumns, NumRows = int(x.pop(0)), int(x.pop(0))
+#     logging.info('This instance has %d variables and %d constraints' %(NumColumns, NumRows))
 
-    # Populating Objective Function Coefficients
-    c = np.array([float(x.pop(0)) for i in range(NumColumns)])
-    assert type(c) == np.ndarray
-    assert len(c)  == NumColumns
+#     # Populating Objective Function Coefficients
+#     c = np.array([float(x.pop(0)) for i in range(NumColumns)])
+#     assert type(c) == np.ndarray
+#     assert len(c)  == NumColumns
     
-    # Populating A matrix (size NumRows * NumColumns)
-    ConstCoef = np.array([float(x.pop(0)) for i in range(int(NumRows * NumColumns))])    
-    assert type(ConstCoef) == np.ndarray
-    assert len(ConstCoef)  == int(NumRows*NumColumns)
+#     # Populating A matrix (size NumRows * NumColumns)
+#     ConstCoef = np.array([float(x.pop(0)) for i in range(int(NumRows * NumColumns))])    
+#     assert type(ConstCoef) == np.ndarray
+#     assert len(ConstCoef)  == int(NumRows*NumColumns)
     
-    # reshaping the 1-d ConstCoef into A
-    A = np.reshape(ConstCoef, (NumRows, NumColumns)) 
-    assert A.shape == (NumRows, NumColumns)
+#     # reshaping the 1-d ConstCoef into A
+#     A = np.reshape(ConstCoef, (NumRows, NumColumns)) 
+#     assert A.shape == (NumRows, NumColumns)
     
-    # Populating the RHS
-    b = np.array([float(x.pop(0)) for i in range(int(NumRows))])
-    assert len(b) == NumRows
-    assert type(b) == np.ndarray
-    return (c, A, b)
+#     # Populating the RHS
+#     b = np.array([float(x.pop(0)) for i in range(int(NumRows))])
+#     assert len(b) == NumRows
+#     assert type(b) == np.ndarray
+#     return (c, A, b)
 
 def get_tableau(prob):
     '''
