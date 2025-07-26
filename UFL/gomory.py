@@ -1,6 +1,8 @@
 import time
 import csv
 import os
+import cplex
+import numpy as np
 from amplpy import AMPL, Environment
 from utils import (
     compute_gap,
@@ -29,6 +31,7 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
 
     ampl.set_option('presolve', 0)
     ampl.set_option('cut_generation', 'gomory')
+    ampl.set_option('cplex_options', 'display=2 simplex display=2')
     ampl.set_option('solver', 'cplex')
     ampl.set_option('display', 1)
 
@@ -179,24 +182,24 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
 
     variables = ampl.get_variables()
 
-    print("Tipo variables:", type(variables))
-    print("variables:", variables)
+    # print("Tipo variables:", type(variables))
+    # print("variables:", variables)
 
     # Proviamo a fare list() per vedere cosa contiene
-    variables_list = list(variables)
-    print("Lista variables:", variables_list)
+    # variables_list = list(variables)
+    # print("Lista variables:", variables_list)
 
-    for i, elem in enumerate(variables_list):
-        print(f"Elemento {i}: tipo {type(elem)} - valore {elem}")
+    # for i, elem in enumerate(variables_list):
+        # print(f"Elemento {i}: tipo {type(elem)} - valore {elem}")
 
     # Se elem è una tupla (nome, Variable), possiamo usarlo:
-    for var_name, var in variables_list:
-        print(f"Var name: {var_name}, Var type: {type(var)}")
+    # for var_name, var in variables_list:
+        # print(f"Var name: {var_name}, Var type: {type(var)}")
 
 
-    from amplpy import Solution
+    #from amplpy import Solution
 
-    solution = Solution(ampl)
+    #solution = Solution(ampl)
 
     basic_indices = []
     nonbasic_indices = []
@@ -204,40 +207,75 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
 
     variables_list = list(ampl.get_variables())
 
+    status = ampl.get_parameter('solve_result').value()
+    print("Solve result:", status)
+    
     for var_name, var in variables_list:
-        print(f"var_name: {var_name}, tipo var: {type(var)}")
+        print("\n")
+        #print(f"var_name: {var_name}, tipo var: {type(var)}")
+        #print(list(var.get_values().to_dict()))  ## get_values da un dataframe
+        
         try:
-            keys = list(var.keys())
-            print(f"  keys: {keys}")
+            keys = list(var.get_values().to_dict())
+            #print(f"  keys: {keys}")
         except Exception as e:
             print(f"  Nessun keys() per {var_name}: {e}")
             keys = None
 
         if keys:
+            val = var.get_values().to_dict()
+            print("qui")
+            
+            
+            
             for idx in keys:
-                status = solution.get_var_status(var[idx])
+                status = var[idx].sstatus()
+                # print(idx)
+                # status = var[idx].sstatus()
+                # print(var[idx].sstatus())
+                
+                #if status is 'none':
+                # if val[idx] !=0:
+                    # status = 'Basic' 
+                    # print(val[idx])
+                    # print('\n')
+                # else :
+                    # status = 'Nonbasic'
+            
+                #status = solution.get_var_status(var[idx])
                 print(f"  {var_name}[{idx}] status: {status}")
-                if status == 'Basic':
+                
+                #print(var[idx].get_values())
+                if status == 'bas':
                     basic_indices.append(col_idx)
                 else:
                     nonbasic_indices.append(col_idx)
                 col_idx += 1
         else:
             try:
-                status = solution.get_var_status(var)
-                print(f"  {var_name} status (scalare): {status}")
+                status = var.sstatus()
+                val = list(var.get_values())
+                #status = solution.get_var_status(var)
+                print(f"  qui si {var_name} status (scalare): {status}")
             except Exception as e:
-                print(f"  Errore get_var_status per {var_name}: {e}")
+                # print(f"  Errore get_var_status per {var_name}: {e}")
                 status = 'Nonbasic'
-            if status == 'Basic':
+                
+            # if val !=0:
+                # status = 'Basic' 
+                
+            # else :
+                # status = 'Nonbasic'
+                
+            if status == 'bas':
                 basic_indices.append(col_idx)
             else:
                 nonbasic_indices.append(col_idx)
             col_idx += 1
 
     print("Basic indices:", basic_indices)
-    print("Nonbasic indices:", nonbasic_indices)
-
+    # print("Nonbasic indices:", nonbasic_indices)
+    print(len(basic_indices))
 
 
 
@@ -245,24 +283,33 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
 
 
     B = [[row[i] for i in basic_indices] for row in A]
+    print(len(B), len(B[0]))
+    
     N = [[row[i] for i in nonbasic_indices] for row in A]
+    print(len(N), len(N[0]))
 
 
     # Inverti B
     try:
-        B_inv = invert_matrix(B)
+        print('qui1')
+        print(np.linalg.det(B))
+        B_inv = np.linalg.inv(B)
+        # B_inv = invert_matrix(B)
+        print('qui2')
     except ValueError:
         print("⚠️ Matrice B non invertibile")
         B_inv = None  # O gestisci l'errore come preferisci
 
     if B_inv is not None:
+        print('qui2')
         # Calcola rhs = B_inv * b_vec
         rhs = mat_vec_mul(B_inv, b_vec)
 
         # Calcola -B_inv * N
         BN = mat_mul(B_inv, N)
+        print('qui3')
         reduced_matrix = [[-x for x in row] for row in BN]
-
+        print('qui4')
         # Stampa per debug (opzionale)
         print("rhs (B_inv * b):", rhs)
         print("reduced_matrix (-B_inv * N):")
@@ -271,4 +318,7 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
 
         # A questo punto puoi procedere a cercare la riga con la massima parte frazionaria e
         # costruire il taglio di Gomory come da tua logica
+        
+        
+
     return

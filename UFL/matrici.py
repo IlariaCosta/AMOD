@@ -90,15 +90,15 @@ def main():
     model.x = Var(model.CLIENTS, model.FACILITIES, domain=NonNegativeReals)
     model.y = Var(model.FACILITIES, domain=Binary)
 
-    def openlink_rule(m, i, j):
+    def openlink_rule(model, i, j):
         return model.x[j, i] <= model.M * model.y[i]
     model.OpenLink = Constraint(model.FACILITIES, model.CLIENTS, rule=openlink_rule)
 
-    def demand_rule(m, j):
+    def demand_rule(model, j):
         return sum(model.x[j, i] for i in model.FACILITIES) == model.d[j]
     model.demand = Constraint(model.CLIENTS, rule=demand_rule)
 
-    def obj_rule(m):
+    def obj_rule(model):
         return sum(model.f[i] * model.y[i] for i in model.FACILITIES) + \
                sum(model.c[j, i] * model.x[j, i] for j in model.CLIENTS for i in model.FACILITIES)
     model.obj = Objective(rule=obj_rule, sense=minimize)

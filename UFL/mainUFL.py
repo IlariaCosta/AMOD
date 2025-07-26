@@ -1,7 +1,9 @@
 import time
 import csv
 import os
+import cplex
 from amplpy import AMPL, Environment
+
 from utils import (
     compute_gap,
     is_integral,
@@ -57,6 +59,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             continue
     
     t0 = time.time()
+    
+
     ampl_relax.solve()
     y_vals = ampl_relax.get_variable('y').get_values().to_dict()
     # print("Valori di y:")
@@ -119,8 +123,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # obj_step, time_step, iter_step = solve_with_gomory(ampl_step, all_cuts=False)
     # gap_step = compute_gap(obj_step, obj_int)
     #-----------------------------------------------------------------------------------------------------------------------
-
-    tagli(ampl,mod_path_int, mod_path_relax, data_path)
+    ############### ricordati qui al posto di model va ampl
+    tagli(ampl_relax,mod_path_int, mod_path_relax, data_path)
    
 
 

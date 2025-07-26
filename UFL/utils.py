@@ -128,11 +128,13 @@ def parse_dat_file(filepath):
 def build_A_b(facilities, clients):
     m = len(facilities)
     n = len(clients)
-
-    var_count = m * n + m
+    slack = n*m;
+    var_count = m * n + m + slack
     row_count = n + m * n
 
     A = [[0 for _ in range(var_count)] for _ in range(row_count)]
+    # print("dimensioni A")
+    # print(len(A), len(A[0]))
     b = [0 for _ in range(row_count)]
 
     def x_index(i, j):
