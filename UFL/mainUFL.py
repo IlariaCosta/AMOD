@@ -123,7 +123,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # obj_step, time_step, iter_step = solve_with_gomory(ampl_step, all_cuts=False)
     # gap_step = compute_gap(obj_step, obj_int)
     #-----------------------------------------------------------------------------------------------------------------------
-    ############### ricordati qui al posto di model va ampl
+    
     tagli(ampl_relax,mod_path_int, mod_path_relax, data_path)
    
 

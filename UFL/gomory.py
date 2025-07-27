@@ -148,12 +148,12 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
     print("ORA CALCOLO A E B \n");
     #facilities, clients, f_vector, _ = parse_dat_file(data_path)
     # Leggi direttamente dal file .dat
-    facilities, clients, f_vector, _ = parse_dat_file(data_path)
+    facilities, clients, f_vector, c_param, demands = parse_dat_file(data_path)
     m = len(facilities)
     n = len(clients)
 
 
-    A, b_vec = build_A_b(facilities, clients)
+    A, b_vec = build_A_b(facilities, clients, demands)
 
     # Ricava il nome base del file (senza estensione .dat)
     basename = os.path.splitext(os.path.basename(data_path))[0]
@@ -208,10 +208,10 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
     variables_list = list(ampl.get_variables())
 
     status = ampl.get_parameter('solve_result').value()
-    print("Solve result:", status)
+    # print("Solve result:", status)
     
     for var_name, var in variables_list:
-        print("\n")
+        # print("\n")
         #print(f"var_name: {var_name}, tipo var: {type(var)}")
         #print(list(var.get_values().to_dict()))  ## get_values da un dataframe
         
@@ -219,12 +219,12 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
             keys = list(var.get_values().to_dict())
             #print(f"  keys: {keys}")
         except Exception as e:
-            print(f"  Nessun keys() per {var_name}: {e}")
+            # print(f"  Nessun keys() per {var_name}: {e}")
             keys = None
 
         if keys:
             val = var.get_values().to_dict()
-            print("qui")
+            # print("qui")
             
             
             
@@ -243,7 +243,7 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
                     # status = 'Nonbasic'
             
                 #status = solution.get_var_status(var[idx])
-                print(f"  {var_name}[{idx}] status: {status}")
+                # print(f"  {var_name}[{idx}] status: {status}")
                 
                 #print(var[idx].get_values())
                 if status == 'bas':
@@ -252,6 +252,7 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
                     nonbasic_indices.append(col_idx)
                 col_idx += 1
         else:
+
             try:
                 status = var.sstatus()
                 val = list(var.get_values())
@@ -273,48 +274,48 @@ def tagli(ampl,mod_path_int, mod_path_relax, data_path):
                 nonbasic_indices.append(col_idx)
             col_idx += 1
 
-    print("Basic indices:", basic_indices)
+    # print("Basic indices:", basic_indices)
     # print("Nonbasic indices:", nonbasic_indices)
-    print(len(basic_indices))
+    # print(len(basic_indices))
 
 
 
-
+    
 
 
     B = [[row[i] for i in basic_indices] for row in A]
-    print(len(B), len(B[0]))
+    # print(len(A), len(A[0]))
     
     N = [[row[i] for i in nonbasic_indices] for row in A]
-    print(len(N), len(N[0]))
+    # print(len(N), len(N[0]))
 
 
     # Inverti B
     try:
-        print('qui1')
-        print(np.linalg.det(B))
+
+        # print(np.linalg.matrix_rank(B))
         B_inv = np.linalg.inv(B)
         # B_inv = invert_matrix(B)
-        print('qui2')
+
     except ValueError:
         print("⚠️ Matrice B non invertibile")
         B_inv = None  # O gestisci l'errore come preferisci
 
     if B_inv is not None:
-        print('qui2')
-        # Calcola rhs = B_inv * b_vec
-        rhs = mat_vec_mul(B_inv, b_vec)
+        print(len(N), len(N[0]))
+        rhs = np.dot(B_inv , b_vec)
+        # rhs = mat_vec_mul(B_inv, b_vec)
 
         # Calcola -B_inv * N
-        BN = mat_mul(B_inv, N)
-        print('qui3')
+        # BN = mat_mul(B_inv, N)
+        BN = np.dot(B_inv,N)
         reduced_matrix = [[-x for x in row] for row in BN]
-        print('qui4')
+
         # Stampa per debug (opzionale)
-        print("rhs (B_inv * b):", rhs)
-        print("reduced_matrix (-B_inv * N):")
-        for r in reduced_matrix:
-            print(r)
+        # print("rhs (B_inv * b):", rhs)
+        # print("reduced_matrix (-B_inv * N):")
+        # for r in reduced_matrix:
+            # print(r)
 
         # A questo punto puoi procedere a cercare la riga con la massima parte frazionaria e
         # costruire il taglio di Gomory come da tua logica
