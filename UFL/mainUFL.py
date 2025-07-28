@@ -1,7 +1,7 @@
 import time
 import csv
 import os
-import cplex
+#import cplex
 from amplpy import AMPL, Environment
 
 from utils import (

@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 import fractions
 import logging
-import cplex #####
+# import cplex #####
 import io
 
 columns=["name", "cluster_type", "nvar","nconstraints","optimal_sol","sol","sol_is_integer","status","ncuts","elapsed_time","gap","relative_gap","iterations"]
@@ -130,60 +130,60 @@ def initializeInstanceVariables(nCols,nRows) :
             lower_bounds.append(0.0)
         return names, lower_bounds, upper_bounds,constraint_senses,constraint_names
 
-def determineOptimal(instance, cluster_type):
-    '''
-    This function determines the optimal solution of the given instance.
+# def determineOptimal(instance, cluster_type):
+#     '''
+#     This function determines the optimal solution of the given instance.
     
-    Arguments:
-        instance
-    '''
-    c, A, b = getProblemData(instance) 
-    nCols, nRows = (len(c), len(b))
-    # Get the instance name
-    txtname = instance.split("/")[2]
-    name = txtname.split(".txt")[0]
-    cplexlog = name+".log"
-    #Program variables section ####################################################
-    names = []
-    all_constraints = []
-    constraint_names = []
-    constraint_senses = []
-    # Variables 
-    for i in range(nCols):
-        names.append("x"+str(i))
-    # Constraint 
-    for i in range(nRows):
-        constraint_names.append("c"+str(i))
-        constraint_senses.append("L")
-    with cplex.Cplex() as mkp:
-        mkp.set_problem_name(name)
-        mkp.objective.set_sense(mkp.objective.sense.maximize)
-        mkp.set_log_stream(None)
-        mkp.set_error_stream(None)
-        mkp.set_warning_stream(None)
-        mkp.set_results_stream(None)
-        params = mkp.parameters
-        # Disable presolve 
-        params.preprocessing.presolve.set(0) 
-        # Add variables & Slack --------------------------------------------------------------------
-        mkp.variables.add(names=names, types=[mkp.variables.type.binary] * nCols)
-        # Add contraints -------------------------------------------------------------------
-        for i in range(nRows):
-            mkp.linear_constraints.add(lin_expr= [cplex.SparsePair(ind= [j for j in range(nCols)], val= A[i])],
-             rhs= [b[i]], names = [constraint_names[i]], senses = [constraint_senses[i]])
-            all_constraints.append(A[i])
-        # Add objective function -----------------------------------------------------------
-        for i in range(nCols): 
-            mkp.objective.set_linear([(i, c[i])])
-        # Resolve the problem instance
-        mkp.solve()
-        # Report the results 
-        logging.info("\n\t\t\t\t\t\t*** OPTIMAL PLI SOLUTION ***")
-        print_solution(mkp)
-        mkp.write("lp/"+cluster_type+"/"+name+"/optimal.lp")
-        mkp.solution.write("solutions/"+cluster_type+"/"+name+"/optimal.log")
-        optimal_sol= mkp.solution.get_objective_value()
-    return optimal_sol
+#     Arguments:
+#         instance
+#     '''
+#     c, A, b = getProblemData(instance) 
+#     nCols, nRows = (len(c), len(b))
+#     # Get the instance name
+#     txtname = instance.split("/")[2]
+#     name = txtname.split(".txt")[0]
+#     cplexlog = name+".log"
+#     #Program variables section ####################################################
+#     names = []
+#     all_constraints = []
+#     constraint_names = []
+#     constraint_senses = []
+#     # Variables 
+#     for i in range(nCols):
+#         names.append("x"+str(i))
+#     # Constraint 
+#     for i in range(nRows):
+#         constraint_names.append("c"+str(i))
+#         constraint_senses.append("L")
+#     with cplex.Cplex() as mkp:
+#         mkp.set_problem_name(name)
+#         mkp.objective.set_sense(mkp.objective.sense.maximize)
+#         mkp.set_log_stream(None)
+#         mkp.set_error_stream(None)
+#         mkp.set_warning_stream(None)
+#         mkp.set_results_stream(None)
+#         params = mkp.parameters
+#         # Disable presolve 
+#         params.preprocessing.presolve.set(0) 
+#         # Add variables & Slack --------------------------------------------------------------------
+#         mkp.variables.add(names=names, types=[mkp.variables.type.binary] * nCols)
+#         # Add contraints -------------------------------------------------------------------
+#         for i in range(nRows):
+#             mkp.linear_constraints.add(lin_expr= [cplex.SparsePair(ind= [j for j in range(nCols)], val= A[i])],
+#              rhs= [b[i]], names = [constraint_names[i]], senses = [constraint_senses[i]])
+#             all_constraints.append(A[i])
+#         # Add objective function -----------------------------------------------------------
+#         for i in range(nCols): 
+#             mkp.objective.set_linear([(i, c[i])])
+#         # Resolve the problem instance
+#         mkp.solve()
+#         # Report the results 
+#         logging.info("\n\t\t\t\t\t\t*** OPTIMAL PLI SOLUTION ***")
+#         print_solution(mkp)
+#         mkp.write("lp/"+cluster_type+"/"+name+"/optimal.lp")
+#         mkp.solution.write("solutions/"+cluster_type+"/"+name+"/optimal.log")
+#         optimal_sol= mkp.solution.get_objective_value()
+#     return optimal_sol
 
 
 def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) : 
@@ -305,31 +305,31 @@ def get_lhs_rhs(prob, cut_row, cut_rhs, A):
     rhs = cut_row[ncol:]
     return lhs, rhs
     
-def print_solution(prob : cplex.Cplex()):
-    '''
-    This function print solution of problem (cplex.Cplex())
+# def print_solution(prob : cplex.Cplex()):
+#     '''
+#     This function print solution of problem (cplex.Cplex())
     
-    Arguments:
-        problem -- cplex.Cplex()
+#     Arguments:
+#         problem -- cplex.Cplex()
     
-    '''
-    ncol = len(prob.variables.get_cols())
-    nrow = len(prob.linear_constraints.get_rows())
-    varnames = prob.variables.get_names()
-    slack = np.round(prob.solution.get_linear_slacks(), 3)
-    x = np.round(prob.solution.get_values(), 3)
+#     '''
+#     ncol = len(prob.variables.get_cols())
+#     nrow = len(prob.linear_constraints.get_rows())
+#     varnames = prob.variables.get_names()
+#     slack = np.round(prob.solution.get_linear_slacks(), 3)
+#     x = np.round(prob.solution.get_values(), 3)
 
-    # Log everything about the solutions found
-    logging.info("\t-> Solution status = %s", prob.solution.status[prob.solution.get_status()])
-    logging.info("\t-> Solution value  = %f\n", prob.solution.get_objective_value())
-    logging.info("SLACKS SITUATION:")
-    for i in range(nrow):
-        logging.info(f'-> Row {i}:  Slack = {slack[i]}')
-    logging.info("\n\t\t\t\t\t PROBLEM VARIABLES:")
-    for j in range(ncol):
-        logging.info(f'-> Column {j} (variable {varnames[j]}):  Value = {x[j]}')
+#     # Log everything about the solutions found
+#     logging.info("\t-> Solution status = %s", prob.solution.status[prob.solution.get_status()])
+#     logging.info("\t-> Solution value  = %f\n", prob.solution.get_objective_value())
+#     logging.info("SLACKS SITUATION:")
+#     for i in range(nrow):
+#         logging.info(f'-> Row {i}:  Slack = {slack[i]}')
+#     logging.info("\n\t\t\t\t\t PROBLEM VARIABLES:")
+#     for j in range(ncol):
+#         logging.info(f'-> Column {j} (variable {varnames[j]}):  Value = {x[j]}')
     
-    sol=  prob.solution.get_objective_value()
-    sol_type= sol.is_integer()
-    status = prob.solution.status[prob.solution.get_status()]
-    return sol, sol_type, status
+#     sol=  prob.solution.get_objective_value()
+#     sol_type= sol.is_integer()
+#     status = prob.solution.status[prob.solution.get_status()]
+#     return sol, sol_type, status
