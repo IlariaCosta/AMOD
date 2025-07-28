@@ -1,7 +1,7 @@
 reset;
 model ufl_relax.mod;
 
-data cap101.dat;
+data cap72.dat;
 param obj_opt = 932615;
 
 /*

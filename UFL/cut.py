@@ -24,9 +24,11 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
         b: vettore termini noti (shape n + m*n,)
     """
     m = len(f)             # numero facilities
-    c_matrix = np.array(c_matrix)
+    print("numero facilities ->", m)
+    c_matrix = np.transpose(c_matrix)
+    c_matriX = np.array(c_matrix)
     n = c_matrix.shape[1]  # numero clienti
-    
+    print("numero clienti ->",n)
     # calcolo vettore coefficienti funzione obiettivo
     # [f_1..f_m, c_11, c_12, ..., c_mn]
     c = np.concatenate((f, c_matrix.flatten()))
@@ -41,7 +43,7 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
     A = np.zeros((num_constraints, num_vars))
     b = np.zeros(num_constraints)
     
-    # Cliente j deve essere assegnato a una sola facility
+    # Cliente j domanda soddisfatta
     for j in range(n):
         for i in range(m):
             A[j][m + i * n + j] = 1
@@ -60,7 +62,7 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
             A[row_idx, x_idx] = 1
             A[row_idx, s_idx] = 1
             b[row_idx] = 0
-
+    print("dimensioni matrice A: ", len(A), len(A[0]))
     return c, A, b
     
    
@@ -109,32 +111,32 @@ def get_tableau(prob):
         n_cuts 
         b_bar 
     '''
-    
-
-
     # print(help(prob.solution.advanced))
+    print("calcolo B inversa")
     BinvA = np.array(prob.solution.advanced.binvarow())
-    print(BinvA)
+    print("calcolata B inversa")
     nrow = BinvA.shape[0]
-    print("qui1")
     ncol = BinvA.shape[1]
-    print("qui1")
-    b_bar = np.zeros(nrow)
+    # nrow = prob.linear_constraints.get_num()
+    # ncol = prob.variables.get_num()
+    # b_bar = np.zeros(nrow)
     
     varnames = prob.variables.get_names()
     b = prob.linear_constraints.get_rhs()
+    print("b = vincoli")
     Binv = np.array(prob.solution.advanced.binvrow())
     b_bar = np.matmul(Binv, b)
     idx = 0     # Compute the nonzeros
     n_cuts = 0  # Number of fractional variables (cuts to be generated)
-    logging.info('\n\t\t\t\t\t LP relaxation final tableau:\n')
+    print('\n\t\t\t\t\t LP relaxation final tableau:\n')
     for i in range(nrow):
         output_t = io.StringIO()
         z = prob.solution.advanced.binvarow(i)
         for j in range(ncol):
             if z[j] > 0:
                 print('+', end='',file=output_t)
-            zj = fractions.Fraction(z[j]).limit_denominator()
+            print(z[j])
+            zj = fractions.Fraction(z[j]).limit_denominator(1000)
             num = zj.numerator
             den = zj.denominator
             if num != 0 and num != den:

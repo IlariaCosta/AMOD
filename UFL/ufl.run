@@ -47,7 +47,7 @@ print " ";
 
 reset;
 model ufl.mod;
-data cap101.dat;
+data cap72.dat;
 option solver clpex;
 solve;
 print "=======================================";

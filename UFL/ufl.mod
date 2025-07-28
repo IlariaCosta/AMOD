@@ -17,13 +17,16 @@ var y {FACILITIES} binary;                # apertura facility (variabile intera)
 s.t. Assign {j in CLIENTS}:
     sum{i in FACILITIES} x[j,i] = 1;
 */
-# Non assegnare clienti a facility chiuse
-s.t. OpenLink {i in FACILITIES, j in CLIENTS}:
-     x[i,j] <= M*y[i];
 
 # La domanda del cliente deve essere soddisfatta
 s.t. demand {j in CLIENTS}:
 	sum{i in FACILITIES}  x[i,j] = d[j];
+	
+# Non assegnare clienti a facility chiuse
+s.t. OpenLink {i in FACILITIES, j in CLIENTS}:
+     x[i,j] <= M*y[i];
+
+
 	
 # Funzione obiettivo: costi apertura + costi trasporto
 minimize TotalCost:

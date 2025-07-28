@@ -30,7 +30,7 @@ from cut import (
 #*************************#
  
 def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
-    # 1. Soluzione ottima intera
+    # 1. CARICO MODELLO INTERO
     print("Soluzione intera ->");
     ampl = AMPL()
     ampl.set_option('solver', 'cplex')
@@ -46,19 +46,26 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     obj_int = ampl.obj['TotalCost'].value()
 
 
-    # 2. Rilassamento ottenuto da modello intero
+    # 2. CARICO MODELLO RILASSATO
     print("Soluzione rilassata ->");
     ampl_relax = AMPL()
     ampl_relax.set_option('solver', 'cplex')
     ampl_relax.read(mod_path_relax)
     ampl_relax.read_data(data_path)
-
-    ## costruisco problema con cplex
+    
+    ## COSTRUISCO INSTANZA PROBLEMA CON CPLEX
     facilities, clients, f_vector, c_param, demands = parse_dat_file(data_path)
+    m = len(facilities)
+    n = len(clients)
     c,A,b = getProblemData(f_vector, c_param,demands)
     nCols, nRows =(len(c)), (len(b))
+    
+    # inizializzo instanza delle variabili con i telaviti UB e LB
     names, lower_bounds, upper_bounds,constraint_senses,constraint_names =initializeInstanceVariables(nCols,nRows) 
-    nCols= nCols+nRows
+    nCols= nCols + n*m          # numero variabili totali 'y' + 'x' + 's'
+    print("numero colonne: ", nCols, "numero righe: ", nRows)
+    
+    print("<<<< CALCOLO ISTANZA CPLEX>>>>")
     prob = cplex.Cplex()
     prob.set_problem_name("istanza1") #nominiamo istanza
     prob.objective.set_sense(prob.objective.sense.maximize)
@@ -78,20 +85,32 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     
     #Add slack to constraints
     A = A.tolist()
-    for row in range(nRows):
-        for slack in range(nRows): 
-            if row==slack: 
-                A[row].append(1)
-            else:
-                A[row].append(0)
-    
+    # for row in range(nRows):
+        # for slack in range(nRows): 
+            # if row==slack: 
+                # A[row].append(1)
+            # else:
+                # A[row].append(0)
+                
     for i in range(nRows):
-        prob.linear_constraints.add(lin_expr= [cplex.SparsePair(ind= [j for j in range(nCols)], val= A[i])], rhs= [b[i]], names = [constraint_names[i]], senses = [constraint_senses[i]])
+        # print(f"Row {i}: len(A[i]) = {len(A[i])}, expected {nCols}")
+        # print(f"rhs: {b[i]}, sense: {constraint_senses[i]}, name: {constraint_names[i]}")
+        prob.linear_constraints.add(
+            lin_expr= [cplex.SparsePair(ind= [j for j in range(nCols)], 
+            val= A[i])], 
+            rhs= [b[i]], 
+            names = [constraint_names[i]], 
+            senses = [constraint_senses[i]]
+        )
+        
     # Add objective function -----------------------------------------------------------
+    
     for i in range(nCols-nRows): 
         prob.objective.set_linear([(i, c[i])])
-        
+    
+    print("risolvo istanza cplex")
     prob.solve()
+    print("-----------------calcolo tableau ---------------------")
     n_cuts, b_bar = get_tableau(prob)
     
     # Rilassa da Python tutte le variabili intere
@@ -200,7 +219,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 def main():
     modello_intero = "ufl.mod"
     modello_relax = "ufl_relax.mod"
-    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith(".dat")])
+    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("72.dat")])
     print("File .dat trovati:", istanze)
     risultati = []
     #istanze = istanze[1:2]

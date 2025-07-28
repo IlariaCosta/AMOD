@@ -129,7 +129,8 @@ def parse_dat_file(filepath):
             parts = line.split()
             if len(parts) == 2:
                 demands_dict[int(parts[0])] = float(parts[1])
-
+    
+    c_param = [row[1:] for row in c_param]
     # Ordina f_param secondo l'ordine dei facilities
     f_vector = [f_param[i] for i in sorted(facilities)]
     demands = [demands_dict[i] for i in sorted(demands_dict.keys())]
