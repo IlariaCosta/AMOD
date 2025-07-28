@@ -10,51 +10,93 @@ columns=["name", "cluster_type", "nvar","nconstraints","optimal_sol","sol","sol_
 
 logging.basicConfig(filename='resolution.log', format='%(asctime)s - %(message)s',level=logging.INFO, datefmt='%d-%b-%y %H:%M:%S')
 
-# def getProblemData(name: str) -> Tuple:
-#     '''
-#     This function extracts the raw data from a .txt file and populates the objective function coefficients
-#     array, the constraints coefficients matrix A and the right hand side b array
-    
-#     Arguments:
-#         name -- the name of the .txt file that contains the raw data
-        
-#     returns:
-#         c -- objective function coefficients array (shape = 1 * n)
-#         A -- constraints coefficients matrix A (shape = m * n)
-#         b -- right hand side values (shape = 1 * m)
-#     '''
-#     # Opening .txt file in order to read the raw data of a problem instance
-#     file = open(str(name), 'r')
-#     x = []
-#     for line in file:
-#         splitLine = line.split()
-#         for i in range(len(splitLine)):
-#             x.append(splitLine[i])
-#     file.close()
-    
-#     # Define parameters
-#     NumColumns, NumRows = int(x.pop(0)), int(x.pop(0))
-#     logging.info('This instance has %d variables and %d constraints' %(NumColumns, NumRows))
+def getProblemData(f, c_matrix, demands) -> Tuple:
+    """
+    Costruisce vettore c, matrice A e vettore b per la formulazione LP del problema UFL.
 
-#     # Populating Objective Function Coefficients
-#     c = np.array([float(x.pop(0)) for i in range(NumColumns)])
-#     assert type(c) == np.ndarray
-#     assert len(c)  == NumColumns
+    Args:
+        f: array costi apertura facilities (shape m,)
+        c_matrix: matrice costi assegnamento (shape m x n)
+
+    Returns:
+        c: vettore funzione obiettivo (shape m + m*n,)
+        A: matrice vincoli (shape (n + m*n) x (m + m*n))
+        b: vettore termini noti (shape n + m*n,)
+    """
+    m = len(f)             # numero facilities
+    c_matrix = np.array(c_matrix)
+    n = c_matrix.shape[1]  # numero clienti
     
-#     # Populating A matrix (size NumRows * NumColumns)
-#     ConstCoef = np.array([float(x.pop(0)) for i in range(int(NumRows * NumColumns))])    
-#     assert type(ConstCoef) == np.ndarray
-#     assert len(ConstCoef)  == int(NumRows*NumColumns)
+    # calcolo vettore coefficienti funzione obiettivo
+    # [f_1..f_m, c_11, c_12, ..., c_mn]
+    c = np.concatenate((f, c_matrix.flatten()))
     
-#     # reshaping the 1-d ConstCoef into A
-#     A = np.reshape(ConstCoef, (NumRows, NumColumns)) 
-#     assert A.shape == (NumRows, NumColumns)
+    # Numero variabili = m + m*n
+    num_vars = m + m * n + m * n
     
-#     # Populating the RHS
-#     b = np.array([float(x.pop(0)) for i in range(int(NumRows))])
-#     assert len(b) == NumRows
-#     assert type(b) == np.ndarray
-#     return (c, A, b)
+    # Numero vincoli = n + m*n
+    num_constraints = n + m * n
+
+    # inizializza matrice di zeri
+    A = np.zeros((num_constraints, num_vars))
+    b = np.zeros(num_constraints)
+    
+    # Cliente j deve essere assegnato a una sola facility
+    for j in range(n):
+        for i in range(m):
+            A[j][m + i * n + j] = 1
+        b[j] = demands[j]
+
+    # Vincoli x_ij <= y_i (equivalente a -y_i + x_ij <= 0)
+    # da riga n a riga n + m*n -1
+    # per ogni i,j
+    for i in range(m):
+        for j in range(n):
+            row_idx = n + i * n + j
+            y_idx = i
+            x_idx = m + i * n + j
+            s_idx = m * n + m + (i * n + j)
+            A[row_idx, y_idx] = -1
+            A[row_idx, x_idx] = 1
+            A[row_idx, s_idx] = 1
+            b[row_idx] = 0
+
+    return c, A, b
+    
+   
+def initializeInstanceVariables(nCols,nRows) : 
+    names = []
+    lower_bounds = []
+    upper_bounds = []
+    constraint_names = []
+    constraint_senses = []
+
+    # Variables y
+    for i in range(nRows):        
+        names.append("y"+str(i))
+        lower_bounds.append(0.0)
+        upper_bounds.append(1.0)
+    # variables x
+    for i in range(nRows):
+        for j in range(nCols):
+            names.append("x"+str(i)+str(j))
+            lower_bounds.append(0.0)
+            upper_bounds.append(1.0)
+    # variables s
+    for i in range(nRows):
+        for j in range(nCols):
+            names.append("s"+str(i)+str(j))
+            lower_bounds.append(0.0)
+
+                  
+        
+    # Constraint 
+    for i in range(nRows):
+        constraint_names.append("c"+str(i))
+        constraint_senses.append("E")
+    
+    return names, lower_bounds, upper_bounds,constraint_senses,constraint_names
+        
 
 def get_tableau(prob):
     '''
@@ -67,11 +109,18 @@ def get_tableau(prob):
         n_cuts 
         b_bar 
     '''
-    BinvA = np.array(prob.solution.advanced.binvarow())
+    
 
+
+    # print(help(prob.solution.advanced))
+    BinvA = np.array(prob.solution.advanced.binvarow())
+    print(BinvA)
     nrow = BinvA.shape[0]
+    print("qui1")
     ncol = BinvA.shape[1]
+    print("qui1")
     b_bar = np.zeros(nrow)
+    
     varnames = prob.variables.get_names()
     b = prob.linear_constraints.get_rhs()
     Binv = np.array(prob.solution.advanced.binvrow())
@@ -107,28 +156,6 @@ def get_tableau(prob):
     logging.info("Cuts to generate: %d", n_cuts)
     return n_cuts , b_bar
 
-
-def initializeInstanceVariables(nCols,nRows) : 
-        names = []
-        lower_bounds = []
-        upper_bounds = []
-        constraint_names = []
-        constraint_senses = []
-
-        # Variables 
-        for i in range(nCols):
-            names.append("x"+str(i))
-            lower_bounds.append(0.0)
-            upper_bounds.append(1.0)
-        # Constraint 
-        for i in range(nRows):
-            constraint_names.append("c"+str(i))
-            constraint_senses.append("L")
-        # Slack 
-        for i in range(nRows):
-            names.append("s"+str(i))
-            lower_bounds.append(0.0)
-        return names, lower_bounds, upper_bounds,constraint_senses,constraint_names
 
 # def determineOptimal(instance, cluster_type):
 #     '''

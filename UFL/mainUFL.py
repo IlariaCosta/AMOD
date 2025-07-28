@@ -1,7 +1,7 @@
 import time
 import csv
 import os
-#import cplex
+import cplex
 from amplpy import AMPL, Environment
 
 from utils import (
@@ -17,7 +17,11 @@ from gomory import (
     solve_with_gomory,
     tagli
 )
-import cut
+from cut import (
+    getProblemData,
+    get_tableau,
+    initializeInstanceVariables
+) 
  
 
 
@@ -49,6 +53,47 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     ampl_relax.read(mod_path_relax)
     ampl_relax.read_data(data_path)
 
+    ## costruisco problema con cplex
+    facilities, clients, f_vector, c_param, demands = parse_dat_file(data_path)
+    c,A,b = getProblemData(f_vector, c_param,demands)
+    nCols, nRows =(len(c)), (len(b))
+    names, lower_bounds, upper_bounds,constraint_senses,constraint_names =initializeInstanceVariables(nCols,nRows) 
+    nCols= nCols+nRows
+    prob = cplex.Cplex()
+    prob.set_problem_name("istanza1") #nominiamo istanza
+    prob.objective.set_sense(prob.objective.sense.maximize)
+    params = prob.parameters
+    params.preprocessing.presolve.set(0) 
+    params.preprocessing.linear.set(0)
+    params.preprocessing.reduce.set(0)
+    
+    prob.variables.add(names=names)
+    # Add variables 
+    for i in range(nCols-nRows):
+        prob.variables.set_lower_bounds(i, lower_bounds[i])
+        prob.variables.set_upper_bounds(i, upper_bounds[i])
+    # Add slack
+    for i in range(nCols-nRows,nCols):
+        prob.variables.set_lower_bounds(i, lower_bounds[i])
+    
+    #Add slack to constraints
+    A = A.tolist()
+    for row in range(nRows):
+        for slack in range(nRows): 
+            if row==slack: 
+                A[row].append(1)
+            else:
+                A[row].append(0)
+    
+    for i in range(nRows):
+        prob.linear_constraints.add(lin_expr= [cplex.SparsePair(ind= [j for j in range(nCols)], val= A[i])], rhs= [b[i]], names = [constraint_names[i]], senses = [constraint_senses[i]])
+    # Add objective function -----------------------------------------------------------
+    for i in range(nCols-nRows): 
+        prob.objective.set_linear([(i, c[i])])
+        
+    prob.solve()
+    n_cuts, b_bar = get_tableau(prob)
+    
     # Rilassa da Python tutte le variabili intere
     variables = ampl_relax.get_variables()
     for var in variables:
@@ -124,7 +169,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # gap_step = compute_gap(obj_step, obj_int)
     #-----------------------------------------------------------------------------------------------------------------------
     
-    tagli(ampl_relax,mod_path_int, mod_path_relax, data_path)
+    # tagli(ampl_relax,mod_path_int, mod_path_relax, data_path)
    
 
 
