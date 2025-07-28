@@ -10,7 +10,7 @@ param obj_opt = 977799;
 */
 #data cap101.dat;
 #param obj_opt = 796647;
-
+/*
 param obj_ip;
 param x_ip{FACILITIES, CLIENTS};
 param y_ip{FACILITIES};
@@ -99,7 +99,7 @@ param TOL := 1e-5;        # tolleranza per controllo interezza variabili
     # ------------------------------
     # Modalità 2: tutti i tagli Gomory insieme
     # ------------------------------
-
+/*
     print "--- Modalità 2: tutti i tagli Gomory insieme ---";
 
     #option cplex_options 'cuts=2';
@@ -124,4 +124,9 @@ param TOL := 1e-5;        # tolleranza per controllo interezza variabili
     #print "Gap relativo rispetto IP: ", gap_rel(obj_gomory_all, obj_ip);
 
     print "=======================================";
+    */
     
+option solver gurobi;
+option gurobi_options 'tech:resultfile=modello_ralex.lp';
+solve;
+

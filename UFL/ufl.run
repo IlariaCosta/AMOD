@@ -54,3 +54,7 @@ print "=======================================";
 print "Elaborazione file dati: cap101.dat";
 print "Soluzione intera ottima (IP) trovata con obj =", TotalCost;
 print " ";
+option solver gurobi;
+option gurobi_options 'tech:resultfile=modello.lp';
+solve;
+
