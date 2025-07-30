@@ -66,7 +66,9 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
     return c, A, b
     
    
-def initializeInstanceVariables(nCols,nRows) : 
+def initializeInstanceVariables(n,m) : 
+    # n = numero clienti
+    # m = numero facilities
     names = []
     lower_bounds = []
     upper_bounds = []
@@ -74,26 +76,29 @@ def initializeInstanceVariables(nCols,nRows) :
     constraint_senses = []
 
     # Variables y
-    for i in range(nRows):        
+    for i in range(m):        
         names.append("y"+str(i))
         lower_bounds.append(0.0)
         upper_bounds.append(1.0)
+    print("lunghezza nomi dopo y: ", len(names))
     # variables x
-    for i in range(nRows):
-        for j in range(nCols):
+    for i in range(m):
+        for j in range(n):
             names.append("x"+str(i)+str(j))
             lower_bounds.append(0.0)
             upper_bounds.append(1.0)
+    print("lunghezza nomi dopo x: ", len(names))
+    
     # variables s
-    for i in range(nRows):
-        for j in range(nCols):
+    for i in range(m):
+        for j in range(n):
             names.append("s"+str(i)+str(j))
             lower_bounds.append(0.0)
-
+    print("lunghezza nomi dopo s: ", len(names))
                   
         
     # Constraint 
-    for i in range(nRows):
+    for i in range(n + n*m):
         constraint_names.append("c"+str(i))
         constraint_senses.append("E")
     
@@ -112,30 +117,45 @@ def get_tableau(prob):
         b_bar 
     '''
     # print(help(prob.solution.advanced))
-    print("calcolo B inversa")
-    BinvA = np.array(prob.solution.advanced.binvarow())
-    print("calcolata B inversa")
-    nrow = BinvA.shape[0]
-    ncol = BinvA.shape[1]
+    # print("calcolo B inversa")
+    # BinvA = np.array(prob.solution.advanced.binvarow())
+    # print("calcolata B inversa")
+    # nrow = BinvA.shape[0]
+    # ncol = BinvA.shape[1]
     # nrow = prob.linear_constraints.get_num()
     # ncol = prob.variables.get_num()
-    # b_bar = np.zeros(nrow)
+    try:
+        nrow = prob.linear_constraints.get_num()
+        ncol = prob.variables.get_num()
+        print(f"numero colonne {ncol}")
+    except Exception as e:
+        print("Errore durante l'accesso a prob:", e)
+    print(f"numero colonne {ncol}, numero righe {nrow}")
+    b_bar = np.zeros(nrow)
     
     varnames = prob.variables.get_names()
     b = prob.linear_constraints.get_rhs()
-    print("b = vincoli")
-    Binv = np.array(prob.solution.advanced.binvrow())
+    print("b = ", b)
+    mat_Binv = prob.solution.advanced.binvrow()
+    Binv = np.array(mat_Binv)
     b_bar = np.matmul(Binv, b)
+    print("b_bar = ", b_bar)
     idx = 0     # Compute the nonzeros
     n_cuts = 0  # Number of fractional variables (cuts to be generated)
     print('\n\t\t\t\t\t LP relaxation final tableau:\n')
+    # Binv_A = prob.solution.advanced.binvarow() 
+    
     for i in range(nrow):
         output_t = io.StringIO()
         z = prob.solution.advanced.binvarow(i)
+        # z = Binv_A[i]
+        # print("popolo z numero -> ", i)
+        # print("prima")
+        # print(ncol)
         for j in range(ncol):
             if z[j] > 0:
                 print('+', end='',file=output_t)
-            print(z[j])
+            # print(z[j])
             zj = fractions.Fraction(z[j]).limit_denominator(1000)
             num = zj.numerator
             den = zj.denominator
@@ -143,15 +163,35 @@ def get_tableau(prob):
                 print(f'{num}/{den} {varnames[j]} ', end='',file=output_t)
             elif num == den:
                 print(f'{varnames[j]} ', end='',file=output_t)
+                # print(z[j])
+            val = z[j]
+            # printf'z[{j}] = {val}')  # 👈 AGGIUNGI QUESTO
+            if abs(val - round(val)) > 1e-6: 
+                print(f'z[{j}] = {val}')
+                zj = fractions.Fraction(z[j]).limit_denominator(1000)
+                num = zj.numerator
+                den = zj.denominator
+                # print(num, den)
+                if num != 0 and num != den:
+                    print(f'{num}/{den} {varnames[j]} ', end='',file=output_t)
+                else :
+                    print(f'{varnames[j]} ', end='',file=output_t)
+            else:
+                print(f'{varnames[j]} ', end='', file=output_t)
             if np.floor(z[j]+0.5) != 0:
                 idx += 1
         b_bar_i = fractions.Fraction(b_bar[i]).limit_denominator()
+        
         num = b_bar_i.numerator
         den = b_bar_i.denominator
+        # print(n_cuts)
         print(f'= {num}/{den}',file=output_t)
+        # print("z popolato")
+        # print("prima")
         contents = output_t.getvalue()
         logging.info("%s",contents)
         output_t.close()
+        
         # Count the number of cuts to be generated
         if np.floor(b_bar[i]) != b_bar[i]:
             n_cuts += 1    

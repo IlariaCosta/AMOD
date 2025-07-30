@@ -3,7 +3,7 @@ import csv
 import os
 import cplex
 from amplpy import AMPL, Environment
-
+import numpy as np
 from utils import (
     compute_gap,
     is_integral,
@@ -55,16 +55,27 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     
     ## COSTRUISCO INSTANZA PROBLEMA CON CPLEX
     facilities, clients, f_vector, c_param, demands = parse_dat_file(data_path)
+    assert np.all(np.array(demands) != 0)
+    assert np.all(np.array(c_param) >= 0)
     m = len(facilities)
     n = len(clients)
-    c,A,b = getProblemData(f_vector, c_param,demands)
-    nCols, nRows =(len(c)), (len(b))
-    
+    print(c_param)
+    c,A,b = getProblemData(f_vector, c_param,demands)   # c -> m + n*m variabili
+    nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n vincoli
+    # print(demands)
     # inizializzo instanza delle variabili con i telaviti UB e LB
-    names, lower_bounds, upper_bounds,constraint_senses,constraint_names =initializeInstanceVariables(nCols,nRows) 
-    nCols= nCols + n*m          # numero variabili totali 'y' + 'x' + 's'
-    print("numero colonne: ", nCols, "numero righe: ", nRows)
+    names, lower_bounds, upper_bounds,constraint_senses,constraint_names =initializeInstanceVariables(n,m) 
     
+    
+    nCols= nCols + n*m          # numero variabili totali 'y' + 'x' + 's'
+    #################################################################
+    print("numero colonne: ", nCols, "numero righe: ", nRows)
+    # m facilities                          --> m variabili 'y'
+    # n clienti                             --> n*m variabili 'x'
+    # n*m variabili di slack per standatizzare il modello
+    # numero di colonne = numero variabili  --> m + n*m + n*m    
+    # numero righe = numero vincoli         -->  n + n*m         
+    #################################################################
     print("<<<< CALCOLO ISTANZA CPLEX>>>>")
     prob = cplex.Cplex()
     prob.set_problem_name("istanza1") #nominiamo istanza
@@ -73,16 +84,18 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     params.preprocessing.presolve.set(0) 
     params.preprocessing.linear.set(0)
     params.preprocessing.reduce.set(0)
-    
+    # print("NUMERO VARIABILI DEL PROBLEMA ",prob.variables.get_num())
     prob.variables.add(names=names)
+        
+    
     # Add variables 
-    for i in range(nCols-nRows):
+    for i in range(nCols-n*m):
         prob.variables.set_lower_bounds(i, lower_bounds[i])
         prob.variables.set_upper_bounds(i, upper_bounds[i])
     # Add slack
     for i in range(nCols-nRows,nCols):
         prob.variables.set_lower_bounds(i, lower_bounds[i])
-    
+
     #Add slack to constraints
     A = A.tolist()
     # for row in range(nRows):
@@ -105,7 +118,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         
     # Add objective function -----------------------------------------------------------
     
-    for i in range(nCols-nRows): 
+    for i in range(nCols-n*m): 
         prob.objective.set_linear([(i, c[i])])
     
     print("risolvo istanza cplex")
