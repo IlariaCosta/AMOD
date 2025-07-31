@@ -137,7 +137,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     print("<<<< CALCOLO ISTANZA CPLEX>>>>")
     prob = cplex.Cplex()
     prob.set_problem_name("istanza1") #nominiamo istanza
-    prob.objective.set_sense(prob.objective.sense.maximize)
+    prob.objective.set_sense(prob.objective.sense.minimize)
     params = prob.parameters
     params.preprocessing.presolve.set(0) 
     params.preprocessing.linear.set(0)
@@ -288,7 +288,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 def main():
     modello_intero = "ufl.mod"
     modello_relax = "ufl_relax.mod"
-    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("72.dat")])
+    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("71_restricted.dat")])
     print("File .dat trovati:", istanze)
     risultati = []
     #istanze = istanze[1:2]

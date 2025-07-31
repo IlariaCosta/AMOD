@@ -136,8 +136,11 @@ def get_tableau(prob):
     varnames = prob.variables.get_names()
     b = prob.linear_constraints.get_rhs()
     print("b = ", b)
+    b = np.array(b)
+    print("b = ", b)
     mat_Binv = prob.solution.advanced.binvrow()
     Binv = np.array(mat_Binv)
+    print("Binv =", Binv)
     b_bar = np.matmul(Binv, b)
     print("b_bar = ", b_bar)
     idx = 0     # Compute the nonzeros
@@ -191,6 +194,9 @@ def get_tableau(prob):
         contents = output_t.getvalue()
         logging.info("%s",contents)
         output_t.close()
+
+        # Count the number of cuts to be generated
+        #print(f"DEBUG: b_bar[{i}] = {b_bar[i]}, floor(b_bar[{i}]) = {np.floor(b_bar[i])}")
         
         # Count the number of cuts to be generated
         if np.floor(b_bar[i]) != b_bar[i]:
