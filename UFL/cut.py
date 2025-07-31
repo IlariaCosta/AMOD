@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 import fractions
 import logging
-# import cplex #####
+import cplex #####
 import io
 
 columns=["name", "cluster_type", "nvar","nconstraints","optimal_sol","sol","sol_is_integer","status","ncuts","elapsed_time","gap","relative_gap","iterations"]
@@ -374,31 +374,31 @@ def get_lhs_rhs(prob, cut_row, cut_rhs, A):
     rhs = cut_row[ncol:]
     return lhs, rhs
     
-# def print_solution(prob : cplex.Cplex()):
-#     '''
-#     This function print solution of problem (cplex.Cplex())
+def print_solution(prob : cplex.Cplex()):
+    '''
+    This function print solution of problem (cplex.Cplex())
     
-#     Arguments:
-#         problem -- cplex.Cplex()
+    Arguments:
+        problem -- cplex.Cplex()
     
-#     '''
-#     ncol = len(prob.variables.get_cols())
-#     nrow = len(prob.linear_constraints.get_rows())
-#     varnames = prob.variables.get_names()
-#     slack = np.round(prob.solution.get_linear_slacks(), 3)
-#     x = np.round(prob.solution.get_values(), 3)
+    '''
+    ncol = len(prob.variables.get_cols())
+    nrow = len(prob.linear_constraints.get_rows())
+    varnames = prob.variables.get_names()
+    slack = np.round(prob.solution.get_linear_slacks(), 3)
+    x = np.round(prob.solution.get_values(), 3)
 
-#     # Log everything about the solutions found
-#     logging.info("\t-> Solution status = %s", prob.solution.status[prob.solution.get_status()])
-#     logging.info("\t-> Solution value  = %f\n", prob.solution.get_objective_value())
-#     logging.info("SLACKS SITUATION:")
-#     for i in range(nrow):
-#         logging.info(f'-> Row {i}:  Slack = {slack[i]}')
-#     logging.info("\n\t\t\t\t\t PROBLEM VARIABLES:")
-#     for j in range(ncol):
-#         logging.info(f'-> Column {j} (variable {varnames[j]}):  Value = {x[j]}')
+    # Log everything about the solutions found
+    logging.info("\t-> Solution status = %s", prob.solution.status[prob.solution.get_status()])
+    logging.info("\t-> Solution value  = %f\n", prob.solution.get_objective_value())
+    logging.info("SLACKS SITUATION:")
+    for i in range(nrow):
+        logging.info(f'-> Row {i}:  Slack = {slack[i]}')
+    logging.info("\n\t\t\t\t\t PROBLEM VARIABLES:")
+    for j in range(ncol):
+        logging.info(f'-> Column {j} (variable {varnames[j]}):  Value = {x[j]}')
     
-#     sol=  prob.solution.get_objective_value()
-#     sol_type= sol.is_integer()
-#     status = prob.solution.status[prob.solution.get_status()]
-#     return sol, sol_type, status
+    sol=  prob.solution.get_objective_value()
+    sol_type= sol.is_integer()
+    status = prob.solution.status[prob.solution.get_status()]
+    return sol, sol_type, status

@@ -20,7 +20,10 @@ from gomory import (
 from cut import (
     getProblemData,
     get_tableau,
-    initializeInstanceVariables
+    initializeInstanceVariables,
+    initialize_fract_gc,
+    generate_gc,
+    print_solution
 ) 
  
 
@@ -52,6 +55,61 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     ampl_relax.set_option('solver', 'cplex')
     ampl_relax.read(mod_path_relax)
     ampl_relax.read_data(data_path)
+
+    # Rilassa da Python tutte le variabili intere
+    variables = ampl_relax.get_variables()
+    for var in variables:
+         try:
+             if var.is_integer():
+               var.set_integer(False)
+         except:
+            continue
+    
+    t0 = time.time()
+    
+
+    ampl_relax.solve()
+    y_vals = ampl_relax.get_variable('y').get_values().to_dict()
+    # print("Valori di y:")
+    # for idx, val in y_vals.items():
+    #     print(f"y[{idx}] = {val}")
+
+    time_relax = time.time() - t0
+    
+    obj_relax = ampl_relax.obj['TotalCost'].value()
+    
+    gap_relax = compute_gap(obj_relax, obj_int)
+    
+    x_vals = list(ampl_relax.get_variable('y').get_values().to_dict().values())
+
+    # print("Valori di y:")
+    # for idx, val in y_vals.items():
+    #     print(f"y[{idx}] = {val}")
+    
+   
+
+    already_integer = is_integral(x_vals)
+
+
+    if already_integer:
+        print ("SOLUZIONE GIA' INTERA\n");
+        return {
+            "istanza": os.path.basename(data_path),
+            "obj_int": obj_int,
+            "time_int": time_int,
+            "obj_relax": obj_relax,
+            "time_relax": time_relax,
+            "gap_relax": 0,
+            "obj_gomory_all": obj_relax,
+            "time_gomory_all": 0,
+            "iter_gomory_all": 0,
+            "gap_gomory_all": 0,
+            "obj_gomory_step": obj_relax,
+            "time_gomory_step": 0,
+            "iter_gomory_step": 0,
+            "gap_gomory_step": 0,
+            "nota": "Relax già intero"
+        }
     
     ## COSTRUISCO INSTANZA PROBLEMA CON CPLEX
     facilities, clients, f_vector, c_param, demands = parse_dat_file(data_path)
@@ -64,7 +122,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n vincoli
     # print(demands)
     # inizializzo instanza delle variabili con i telaviti UB e LB
-    names, lower_bounds, upper_bounds,constraint_senses,constraint_names =initializeInstanceVariables(n,m) 
+    names, lower_bounds, upper_bounds,constraint_senses,constraint_names = initializeInstanceVariables(n,m) 
     
     
     nCols= nCols + n*m          # numero variabili totali 'y' + 'x' + 's'
@@ -125,61 +183,24 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     prob.solve()
     print("-----------------calcolo tableau ---------------------")
     n_cuts, b_bar = get_tableau(prob)
+    #b_bar vettore dei termini noti
     
-    # Rilassa da Python tutte le variabili intere
-    variables = ampl_relax.get_variables()
-    for var in variables:
-         try:
-             if var.is_integer():
-               var.set_integer(False)
-         except:
-            continue
-    
-    t0 = time.time()
-    
+    print("Mi preparo per tagli")
 
-    ampl_relax.solve()
-    y_vals = ampl_relax.get_variable('y').get_values().to_dict()
-    # print("Valori di y:")
-    # for idx, val in y_vals.items():
-    #     print(f"y[{idx}] = {val}")
-    
+    varnames = prob.variables.get_names()
+    gc_lhs, gc_rhs = initialize_fract_gc(n_cuts,nCols , prob, varnames, b_bar)
+    #gc_lhs: matrice dei coefficienti delle disuguaglianze Gomory (left-hand side)
+    #gc_rhs: termini noti (right-hand side) delle disuguaglianze
 
+    print("Genero tagli")
+    cuts, cuts_limits, cut_senses = generate_gc(prob, A, gc_lhs, gc_rhs, names) 
+    # cuts: lista dei coefficienti dei tagli (uno per ciascun vincolo)
+    # cuts_limits: lista dei termini noti (right-hand side) dei tagli
+    # cut_senses: lista dei sensi dei vincoli (es. <= → 'L')
+   
+   
+    print_solution(prob)
 
-    time_relax = time.time() - t0
-    
-    obj_relax = ampl_relax.obj['TotalCost'].value()
-    
-    gap_relax = compute_gap(obj_relax, obj_int)
-    
-    x_vals = list(ampl_relax.get_variable('y').get_values().to_dict().values())
-
-    # print("Valori di y:")
-    # for idx, val in y_vals.items():
-    #     print(f"y[{idx}] = {val}")
-    
-    already_integer = is_integral(x_vals)
-
-
-    if already_integer:
-        print ("SOLUZIONE GIA' INTERA\n");
-        return {
-            "istanza": os.path.basename(data_path),
-            "obj_int": obj_int,
-            "time_int": time_int,
-            "obj_relax": obj_relax,
-            "time_relax": time_relax,
-            "gap_relax": 0,
-            "obj_gomory_all": obj_relax,
-            "time_gomory_all": 0,
-            "iter_gomory_all": 0,
-            "gap_gomory_all": 0,
-            "obj_gomory_step": obj_relax,
-            "time_gomory_step": 0,
-            "iter_gomory_step": 0,
-            "gap_gomory_step": 0,
-            "nota": "Relax già intero"
-        }
 
     print("\n***** GOMORY CUTS *****");
     # 3. Gomory: tutti i tagli
@@ -256,11 +277,11 @@ def main():
 
     # Risultati finali
     print("Risultati finali:")
-    for res in risultati:
-        max_len = max(len(k) for k in res.keys())  # per allineare i due punti
-        for key, value in res.items():
-            print(f"{key.ljust(max_len)} : {value}")
-        print("-" * 40)
+    # for res in risultati:
+    #     max_len = max(len(k) for k in res.keys())  # per allineare i due punti
+    #     for key, value in res.items():
+    #         print(f"{key.ljust(max_len)} : {value}")
+    #     print("-" * 40)
 
 
 
