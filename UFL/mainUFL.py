@@ -183,6 +183,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     prob.solve()
     print("-----------------calcolo tableau ---------------------")
     n_cuts, b_bar = get_tableau(prob)
+    print("Possibili tagli", n_cuts)
     #b_bar vettore dei termini noti
     
     print("Mi preparo per tagli")
@@ -197,9 +198,43 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # cuts: lista dei coefficienti dei tagli (uno per ciascun vincolo)
     # cuts_limits: lista dei termini noti (right-hand side) dei tagli
     # cut_senses: lista dei sensi dei vincoli (es. <= → 'L')
-   
-   
+
+    print("Print nel log")
     print_solution(prob)
+
+    print("Print a schermo")
+    print(f"Numero di tagli generati: {len(cuts)}")
+    for i in range(len(cuts)):
+        # 1. Estrai il taglio corrente
+        indici = [j for j, val in enumerate(cuts[i]) if val != 0]
+        valori = [cuts[i][j] for j in indici]
+
+        # 2. Aggiungilo al modello CPLEX
+        prob.linear_constraints.add(
+            lin_expr=[cplex.SparsePair(ind=indici, val=valori)],
+            senses=[cut_senses[i]],
+            rhs=[cuts_limits[i]]
+        )
+
+        # 3. Risolvi il problema aggiornato
+        prob.solve()
+
+        # 4. Stampa la nuova soluzione
+       # print(prob)  # Assicurati di aver definito questa funzione
+        print("\n========== SOLUZIONE CORRENTE ==========")
+        try:
+            obj_value = prob.solution.get_objective_value()
+            var_names = prob.variables.get_names()
+            var_values = prob.solution.get_values()
+            
+            print(f"Valore funzione obiettivo: {obj_value:.4f}\n")
+            print("Valori delle variabili:")
+            for name, val in zip(var_names, var_values):
+                if abs(val) > 1e-6:  # evita di stampare zeri numerici
+                    print(f"  {name} = {val:.4f}")
+        except Exception as e:
+            print("Errore nel recupero della soluzione:", e)
+
 
 
     print("\n***** GOMORY CUTS *****");
@@ -277,11 +312,11 @@ def main():
 
     # Risultati finali
     print("Risultati finali:")
-    # for res in risultati:
-    #     max_len = max(len(k) for k in res.keys())  # per allineare i due punti
-    #     for key, value in res.items():
-    #         print(f"{key.ljust(max_len)} : {value}")
-    #     print("-" * 40)
+    for res in risultati:
+        max_len = max(len(k) for k in res.keys())  # per allineare i due punti
+        for key, value in res.items():
+            print(f"{key.ljust(max_len)} : {value}")
+        print("-" * 40)
 
 
 
