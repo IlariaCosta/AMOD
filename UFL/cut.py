@@ -3,7 +3,7 @@ from typing import Tuple
 import numpy as np
 import fractions
 import logging
-import cplex #####
+import cplex 
 import io
 
 columns=["name", "cluster_type", "nvar","nconstraints","optimal_sol","sol","sol_is_integer","status","ncuts","elapsed_time","gap","relative_gap","iterations"]
@@ -26,6 +26,7 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
     m = len(f)             # numero facilities
     print("numero facilities ->", m)
     c_matrix = np.transpose(c_matrix)
+    #print(len(c_matrix), len(c_matrix[0]))
     c_matriX = np.array(c_matrix)
     n = c_matrix.shape[1]  # numero clienti
     print("numero clienti ->",n)
@@ -34,31 +35,40 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
     c = np.concatenate((f, c_matrix.flatten()))
     
     # Numero variabili = m + m*n
-    num_vars = m + m * n + m * n
+    num_vars = m + (m * n) + (m * n)
     
     # Numero vincoli = n + m*n
-    num_constraints = n + m * n
+    num_constraints = n + (m * n)
 
     # inizializza matrice di zeri
     A = np.zeros((num_constraints, num_vars))
     b = np.zeros(num_constraints)
-    
-    # Cliente j domanda soddisfatta
-    for j in range(n):
-        for i in range(m):
-            A[j][m + i * n + j] = 1
-        b[j] = demands[j]
+
+    # definisco la bin M
+    M = max(demands)
+    print(f"big M = {M}")
+    # le prime m variabili sono le y 
+    # le altre m*n sono le x
+    # le ultime m*n sono le s
+    # la domanda del cliente j deve essere soddisfatta
+    # le prime n righe descrivono i vincoli
+    for i in range(n):
+        for j in range(m):
+            A[i][m + j * n + i] = 1
+        b[i] = demands[i]
+    #print("stampo matrice A.",A)
 
     # Vincoli x_ij <= y_i (equivalente a -y_i + x_ij <= 0)
+    # le successive m*n righe sono relative ai vincoli x_ij - y_i + s_ij = 0
     # da riga n a riga n + m*n -1
     # per ogni i,j
     for i in range(m):
+        y_idx = i
         for j in range(n):
             row_idx = n + i * n + j
-            y_idx = i
             x_idx = m + i * n + j
             s_idx = m * n + m + (i * n + j)
-            A[row_idx, y_idx] = -1
+            A[row_idx, y_idx] = -M
             A[row_idx, x_idx] = 1
             A[row_idx, s_idx] = 1
             b[row_idx] = 0
@@ -86,7 +96,7 @@ def initializeInstanceVariables(n,m) :
         for j in range(n):
             names.append("x"+str(i)+str(j))
             lower_bounds.append(0.0)
-            upper_bounds.append(1.0)
+            #upper_bounds.append(1.0)   
     print("lunghezza nomi dopo x: ", len(names))
     
     # variables s
@@ -105,7 +115,7 @@ def initializeInstanceVariables(n,m) :
     return names, lower_bounds, upper_bounds,constraint_senses,constraint_names
         
 
-def get_tableau(prob):
+def get_tableau(prob,A,b):
     '''
     This function get the final tableau of the prob (cplex.Cplex())
     
@@ -116,6 +126,15 @@ def get_tableau(prob):
         n_cuts 
         b_bar 
     '''
+    print(prob.solution.get_status_string())
+    #col_status = prob.solution.basis.get_status()[0]
+    #nonbasic_indices = [i for i, status in enumerate(col_status) if status != prob.basis.status.basic]
+    b_bar = np.zeros(len(b))
+    for i in range(len(b)):
+        # Ottieni la riga i-esima di B^-1
+        binv_row = prob.solution.advanced.binvrow(i)
+        b_bar[i] = np.dot(binv_row, b)
+    #print("\n\t\tstampo vettore b: ",b_bar)
     # print(help(prob.solution.advanced))
     # print("calcolo B inversa")
     # BinvA = np.array(prob.solution.advanced.binvarow())
@@ -135,14 +154,11 @@ def get_tableau(prob):
     
     varnames = prob.variables.get_names()
     b = prob.linear_constraints.get_rhs()
-    print("b = ", b)
-    b = np.array(b)
-    print("b = ", b)
+    #print("b = ", b)
     mat_Binv = prob.solution.advanced.binvrow()
     Binv = np.array(mat_Binv)
-    print("Binv =", Binv)
     b_bar = np.matmul(Binv, b)
-    print("b_bar = ", b_bar)
+    #print("b_bar = ", b_bar)
     idx = 0     # Compute the nonzeros
     n_cuts = 0  # Number of fractional variables (cuts to be generated)
     print('\n\t\t\t\t\t LP relaxation final tableau:\n')
@@ -194,11 +210,9 @@ def get_tableau(prob):
         contents = output_t.getvalue()
         logging.info("%s",contents)
         output_t.close()
-
-        # Count the number of cuts to be generated
-        #print(f"DEBUG: b_bar[{i}] = {b_bar[i]}, floor(b_bar[{i}]) = {np.floor(b_bar[i])}")
         
         # Count the number of cuts to be generated
+        #print("b bar = ",b_bar[i])
         if np.floor(b_bar[i]) != b_bar[i]:
             n_cuts += 1    
     logging.info("Cuts to generate: %d", n_cuts)
@@ -380,7 +394,7 @@ def get_lhs_rhs(prob, cut_row, cut_rhs, A):
     rhs = cut_row[ncol:]
     return lhs, rhs
     
-def print_solution(prob : cplex.Cplex()):
+def print_solution(prob): # : cplex.Cplex()):
     '''
     This function print solution of problem (cplex.Cplex())
     

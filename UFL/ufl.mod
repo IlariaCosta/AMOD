@@ -9,14 +9,9 @@ param c {CLIENTS, FACILITIES}  >= 0;      # costo trasporto cliente-facility
 
 param M := max {j in CLIENTS} d[j];						# definisco big M
 #var x {CLIENTS, FACILITIES} binary;  # assegnazione clienti (frazi o intera)
-var x {FACILITIES,CLIENTS}  >=0;  # assegnazione clienti (frazi o intera)
+var x {FACILITIES,CLIENTS}  >=0;          # assegnazione clienti (frazi o intera)
 var y {FACILITIES} binary;                # apertura facility (variabile intera)
 
-
-/*# Ogni cliente è assegnato a una e una sola facility
-s.t. Assign {j in CLIENTS}:
-    sum{i in FACILITIES} x[j,i] = 1;
-*/
 
 # La domanda del cliente deve essere soddisfatta
 s.t. demand {j in CLIENTS}:

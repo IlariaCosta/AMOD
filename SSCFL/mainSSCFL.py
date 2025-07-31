@@ -36,7 +36,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # 1. CARICO MODELLO INTERO
     print("Soluzione intera ->");
     ampl = AMPL()
-    ampl.set_option('solver', 'cplex')
+    ampl.set_option('solver', 'cplexamp')
     ampl.read(mod_path_int)
     ampl.read_data(data_path)
 
@@ -52,7 +52,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # 2. CARICO MODELLO RILASSATO
     print("Soluzione rilassata ->");
     ampl_relax = AMPL()
-    ampl_relax.set_option('solver', 'cplex')
+    ampl_relax.set_option('solver', 'cplexamp')
     ampl_relax.read(mod_path_relax)
     ampl_relax.read_data(data_path)
 
@@ -70,9 +70,9 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
     ampl_relax.solve()
     y_vals = ampl_relax.get_variable('y').get_values().to_dict()
-    # print("Valori di y:")
-    # for idx, val in y_vals.items():
-    #     print(f"y[{idx}] = {val}")
+    print("Valori di y:")
+    for idx, val in y_vals.items():
+        print(f"y[{idx}] = {val}")
 
     time_relax = time.time() - t0
     
@@ -120,7 +120,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     print(c_param)
     c,A,b = getProblemData(f_vector, c_param,demands)   # c -> m + n*m variabili
     nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n vincoli
-    # print(demands)
+    
     # inizializzo instanza delle variabili con i telaviti UB e LB
     names, lower_bounds, upper_bounds,constraint_senses,constraint_names = initializeInstanceVariables(n,m) 
     
@@ -144,7 +144,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     params.preprocessing.reduce.set(0)
     # print("NUMERO VARIABILI DEL PROBLEMA ",prob.variables.get_num())
     prob.variables.add(names=names)
-        
+    
     
     # Add variables 
     for i in range(nCols-n*m):
@@ -182,11 +182,11 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     print("risolvo istanza cplex")
     prob.solve()
     print("-----------------calcolo tableau ---------------------")
-    n_cuts, b_bar = get_tableau(prob)
+    n_cuts, b_bar = get_tableau(prob,A,b)
     print("Possibili tagli", n_cuts)
     #b_bar vettore dei termini noti
     
-    print("Mi preparo per tagli")
+    print(f"Mi preparo per {n_cuts} tagli")
 
     varnames = prob.variables.get_names()
     gc_lhs, gc_rhs = initialize_fract_gc(n_cuts,nCols , prob, varnames, b_bar)
@@ -258,7 +258,10 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     #-----------------------------------------------------------------------------------------------------------------------
     
     # tagli(ampl_relax,mod_path_int, mod_path_relax, data_path)
-   
+    y_vals = ampl_relax.get_variable('y').get_values().to_dict()
+    print("Valori di y:")
+    for idx, val in y_vals.items():
+        print(f"y[{idx}] = {val}")
 
 
     return {
@@ -288,7 +291,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 def main():
     modello_intero = "sscfl.mod"
     modello_relax = "sscfl_relax.mod"
-    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("41_restricted.dat")])
+    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("43.dat")])
     print("File .dat trovati:", istanze)
     risultati = []
     #istanze = istanze[1:2]
@@ -318,7 +321,7 @@ def main():
             print(f"{key.ljust(max_len)} : {value}")
         print("-" * 40)
 
-
+    
 
 
 if __name__ == "__main__":

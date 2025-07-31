@@ -37,13 +37,14 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
     num_vars = m + m * n + m * n
     
     # Numero vincoli = n + m*n
-    num_constraints = n + m * n
+    num_constraints = n + m * n + m
 
     # inizializza matrice di zeri
     A = np.zeros((num_constraints, num_vars))
     b = np.zeros(num_constraints)
     
     # Cliente j domanda soddisfatta
+    # le prime n righe descrivono i vincoli
     for j in range(n):
         for i in range(m):
             A[j][m + i * n + j] = 1
@@ -62,7 +63,14 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
             A[row_idx, x_idx] = 1
             A[row_idx, s_idx] = 1
             b[row_idx] = 0
+            print(row_idx, y_idx,x_idx,s_idx)
+
     print("dimensioni matrice A: ", len(A), len(A[0]))
+    obj = 0
+    for i in range(num_constraints):
+        for j in range(num_vars):
+            if A[i][j]!= 0: print(A[i][j])
+    print(obj)
     return c, A, b
     
    
@@ -105,7 +113,7 @@ def initializeInstanceVariables(n,m) :
     return names, lower_bounds, upper_bounds,constraint_senses,constraint_names
         
 
-def get_tableau(prob):
+def get_tableau(prob,A,b):
     '''
     This function get the final tableau of the prob (cplex.Cplex())
     
@@ -116,6 +124,22 @@ def get_tableau(prob):
         n_cuts 
         b_bar 
     '''
+   # print(help(prob.solution))
+    #print(prob.solution.get_indicator_slack())
+    sol_status = prob.solution.get_status_string()
+    print(sol_status)
+    if sol_status in [prob.solution.status.optimal,prob.solution.status.optimal_tolerance]:
+    # La soluzione è valida, quindi puoi chiedere lo stato delle variabili
+        col_status, row_status = prob.solution.basis.get_status()
+    
+    basic_indices = [i for i, status in enumerate(col_status) if status == prob.basis.status.basic]
+    nonbasic_indices = [i for i, status in enumerate(col_status) if status != prob.basis.status.basic]
+    
+    for i, basic_var_index in enumerate(basic_indices):
+        binv_row = prob.solution.advanced.binvrow(i) # Questo è corretto
+        b_bar_i = np.dot(binv_row, b)
+        if abs(b_bar_i - round(b_bar_i)) > 1e-6:
+            print("valore frazionario")
     # print(help(prob.solution.advanced))
     # print("calcolo B inversa")
     # BinvA = np.array(prob.solution.advanced.binvarow())
@@ -380,7 +404,7 @@ def get_lhs_rhs(prob, cut_row, cut_rhs, A):
     rhs = cut_row[ncol:]
     return lhs, rhs
     
-def print_solution(prob : cplex.Cplex()):
+def print_solution(prob):# : cplex.Cplex()):
     '''
     This function print solution of problem (cplex.Cplex())
     

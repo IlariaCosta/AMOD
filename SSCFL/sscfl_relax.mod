@@ -29,14 +29,7 @@ s.t. Capacity {i in FACILITIES}:
     sum {j in CLIENTS} d[j] * x[j,i] <= capacity[i] * y[i];
 
 
-param coeff {CUTS} default 0;
-param rhs {CUTS};
 
-s.t. Cuts_x {k in CUTS: cut_type[k] = "x"}:
-    x[cut_j[k], cut_i[k]] <= rhs[k];
-
-s.t. Cuts_y {k in CUTS: cut_type[k] = "y"}:
-    y[cut_i[k]] <= rhs[k];
 
 # Funzione obiettivo: costi apertura + costi trasporto
 minimize TotalCost:

@@ -34,13 +34,13 @@ from cut import (
  
 def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # 1. CARICO MODELLO INTERO
-    print("Soluzione intera ->");
+    print("\n========SOLUZIONE INTERA========");
     ampl = AMPL()
-    ampl.set_option('solver', 'cplex')
+    ampl.set_option('solver', 'cplexamp')
     ampl.read(mod_path_int)
     ampl.read_data(data_path)
 
-    ampl.set_option('cplex_options', 'mipgap=0')
+    #ampl.set_option('cplex_options', 'mipgap=0')
     t0 = time.time()
     ampl.solve()
     
@@ -50,9 +50,9 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
 
     # 2. CARICO MODELLO RILASSATO
-    print("Soluzione rilassata ->");
+    print("\n========SOLUZIONE RILASSATA===========");
     ampl_relax = AMPL()
-    ampl_relax.set_option('solver', 'cplex')
+    ampl_relax.set_option('solver', 'cplexamp')
     ampl_relax.read(mod_path_relax)
     ampl_relax.read_data(data_path)
 
@@ -117,7 +117,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     assert np.all(np.array(c_param) >= 0)
     m = len(facilities)
     n = len(clients)
-    print(c_param)
+    #print(c_param)
     c,A,b = getProblemData(f_vector, c_param,demands)   # c -> m + n*m variabili
     nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n vincoli
     # print(demands)
@@ -145,14 +145,15 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # print("NUMERO VARIABILI DEL PROBLEMA ",prob.variables.get_num())
     prob.variables.add(names=names)
         
-    
+    print("QUIQUIQUI")
     # Add variables 
-    for i in range(nCols-n*m):
+    for i in range(nCols-2*n*m):
         prob.variables.set_lower_bounds(i, lower_bounds[i])
         prob.variables.set_upper_bounds(i, upper_bounds[i])
     # Add slack
-    for i in range(nCols-nRows,nCols):
+    for i in range(nCols-2*m*n,nCols):
         prob.variables.set_lower_bounds(i, lower_bounds[i])
+
 
     #Add slack to constraints
     A = A.tolist()
@@ -173,16 +174,19 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             names = [constraint_names[i]], 
             senses = [constraint_senses[i]]
         )
+
         
     # Add objective function -----------------------------------------------------------
     
     for i in range(nCols-n*m): 
         prob.objective.set_linear([(i, c[i])])
+ 
     
     print("risolvo istanza cplex")
     prob.solve()
+    print(f"valore soluzione cplex = {prob.solution.get_objective_value()}")
     print("-----------------calcolo tableau ---------------------")
-    n_cuts, b_bar = get_tableau(prob)
+    n_cuts, b_bar = get_tableau(prob,A,b)
     print("Possibili tagli", n_cuts)
     #b_bar vettore dei termini noti
     
@@ -228,10 +232,10 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             var_values = prob.solution.get_values()
             
             print(f"Valore funzione obiettivo: {obj_value:.4f}\n")
-            print("Valori delle variabili:")
-            for name, val in zip(var_names, var_values):
-                if abs(val) > 1e-6:  # evita di stampare zeri numerici
-                    print(f"  {name} = {val:.4f}")
+            #print("Valori delle variabili:")
+            #for name, val in zip(var_names, var_values):
+            #    if abs(val) > 1e-6:  # evita di stampare zeri numerici
+            #        print(f"  {name} = {val:.4f}")
         except Exception as e:
             print("Errore nel recupero della soluzione:", e)
 
