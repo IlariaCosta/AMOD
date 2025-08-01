@@ -187,6 +187,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     print(f"valore soluzione cplex = {prob.solution.get_objective_value()}")
     print("-----------------calcolo tableau ---------------------")
     n_cuts, b_bar = get_tableau(prob,A,b)
+    #print(b_bar)
     print("Possibili tagli", n_cuts)
     #b_bar vettore dei termini noti
     
@@ -194,6 +195,10 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
     varnames = prob.variables.get_names()
     gc_lhs, gc_rhs = initialize_fract_gc(n_cuts,nCols , prob, varnames, b_bar)
+    
+    #print(f"{gc_lhs}>={gc_rhs}")
+    #for i in range(len(gc_rhs)):
+    #    print(f"{gc_lhs[i]}>= {gc_rhs[i]}")
     #gc_lhs: matrice dei coefficienti delle disuguaglianze Gomory (left-hand side)
     #gc_rhs: termini noti (right-hand side) delle disuguaglianze
 
@@ -203,7 +208,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # cuts_limits: lista dei termini noti (right-hand side) dei tagli
     # cut_senses: lista dei sensi dei vincoli (es. <= → 'L')
 
-    print("Print nel log")
+    print(cuts)
     print_solution(prob)
 
     print("Print a schermo")

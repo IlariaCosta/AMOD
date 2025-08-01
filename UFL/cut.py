@@ -185,8 +185,8 @@ def get_tableau(prob,A,b):
                 # print(z[j])
             val = z[j]
             # printf'z[{j}] = {val}')  # 👈 AGGIUNGI QUESTO
-            if abs(val - round(val)) > 1e-6: 
-                print(f'z[{j}] = {val}')
+            if abs(val - round(val)) > 0: #1e-6 
+                #print(f'z[{j}] = {val}')
                 zj = fractions.Fraction(z[j]).limit_denominator(1000)
                 num = zj.numerator
                 den = zj.denominator
@@ -214,6 +214,7 @@ def get_tableau(prob,A,b):
         # Count the number of cuts to be generated
         #print("b bar = ",b_bar[i])
         if np.floor(b_bar[i]) != b_bar[i]:
+            #print(b_bar[i])
             n_cuts += 1    
     logging.info("Cuts to generate: %d", n_cuts)
     return n_cuts , b_bar
@@ -300,11 +301,16 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
     rmatval  = np.zeros(ncol)
     logging.info('Generating Gomory cuts...\n')
     cut = 0  #  Index of cut to be added
-    for i in range(n_cuts):
+    #print(b_bar)
+    #for i in range(n_cuts):
+    index = 0
+    for i in range(len(b_bar)):
         idx = 0
         output = io.StringIO()
+        
         if np.floor(b_bar[i]) != b_bar[i]:
             print(f'Row {i+1} gives cut -> ', end = '', file=output)
+            #print("sono entrato qui dentro")
             z = np.copy(prob.solution.advanced.binvarow(i)) # Use np.copy to avoid changing the
                                                         # optimal tableau in the problem instance
             rmatbeg[cut] = idx
@@ -324,9 +330,10 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
                         num, den = (fj.numerator, fj.denominator)
                         print(f'{num}/{den} {varnames[j]} ', end='',file=output)
            
-            gc_lhs[i,:] = z
-            cuts[i,:]= z
+            gc_lhs[index,:] = z
+            cuts[index,:]= z
             gc_rhs[cut] = b_bar[i] - np.copy(np.floor(b_bar[i])) # np.copy as above
+            #print(gc_rhs[cut])
             gc_sense[cut] = 'L'
             gc_rhs_i = fractions.Fraction(gc_rhs[cut]).limit_denominator()
             num = gc_rhs_i.numerator
@@ -337,11 +344,12 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
             contents = output.getvalue()
             output.close()
             logging.info(contents)
-    return gc_lhs, gc_rhs
+            index +=1
+    return gc_lhs, gc_rhs   # lhs è la parte sinistra del taglio
+                            # rhs è la parte destra del taglio
 
 def generate_gc(mkp, A, gc_lhs, gc_rhs, names) : 
-    '''
-    
+    ''' 
     Arguments:
         mkp
         A
@@ -377,6 +385,7 @@ def generate_gc(mkp, A, gc_lhs, gc_rhs, names) :
         contents = output.getvalue()
         output.close()
         logging.info(contents)
+        #print(contents)
     return cuts, cuts_limits, cut_senses
 
 def get_lhs_rhs(prob, cut_row, cut_rhs, A):
