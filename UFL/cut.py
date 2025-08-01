@@ -29,7 +29,7 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
     #print(len(c_matrix), len(c_matrix[0]))
     c_matriX = np.array(c_matrix)
     n = c_matrix.shape[1]  # numero clienti
-    print("numero clienti ->",n)
+    #print("numero clienti ->",n)
     # calcolo vettore coefficienti funzione obiettivo
     # [f_1..f_m, c_11, c_12, ..., c_mn]
     c = np.concatenate((f, c_matrix.flatten()))
@@ -46,7 +46,7 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
 
     # definisco la bin M
     M = max(demands)
-    print(f"big M = {M}")
+    #print(f"big M = {M}")
     # le prime m variabili sono le y 
     # le altre m*n sono le x
     # le ultime m*n sono le s
@@ -72,7 +72,7 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
             A[row_idx, x_idx] = 1
             A[row_idx, s_idx] = 1
             b[row_idx] = 0
-    print("dimensioni matrice A: ", len(A), len(A[0]))
+    #print("dimensioni matrice A: ", len(A), len(A[0]))
     return c, A, b
     
    
@@ -90,21 +90,21 @@ def initializeInstanceVariables(n,m) :
         names.append("y"+str(i))
         lower_bounds.append(0.0)
         upper_bounds.append(1.0)
-    print("lunghezza nomi dopo y: ", len(names))
+    #print("lunghezza nomi dopo y: ", len(names))
     # variables x
     for i in range(m):
         for j in range(n):
             names.append("x"+str(i)+str(j))
             lower_bounds.append(0.0)
             #upper_bounds.append(1.0)   
-    print("lunghezza nomi dopo x: ", len(names))
+    #print("lunghezza nomi dopo x: ", len(names))
     
     # variables s
     for i in range(m):
         for j in range(n):
             names.append("s"+str(i)+str(j))
             lower_bounds.append(0.0)
-    print("lunghezza nomi dopo s: ", len(names))
+    #print("lunghezza nomi dopo s: ", len(names))
                   
         
     # Constraint 
@@ -126,7 +126,7 @@ def get_tableau(prob,A,b):
         n_cuts 
         b_bar 
     '''
-    print(prob.solution.get_status_string())
+    #print(prob.solution.get_status_string())
     #col_status = prob.solution.basis.get_status()[0]
     #nonbasic_indices = [i for i, status in enumerate(col_status) if status != prob.basis.status.basic]
     b_bar = np.zeros(len(b))
@@ -146,10 +146,10 @@ def get_tableau(prob,A,b):
     try:
         nrow = prob.linear_constraints.get_num()
         ncol = prob.variables.get_num()
-        print(f"numero colonne {ncol}")
+        #print(f"numero colonne {ncol}")
     except Exception as e:
         print("Errore durante l'accesso a prob:", e)
-    print(f"numero colonne {ncol}, numero righe {nrow}")
+    #print(f"numero colonne {ncol}, numero righe {nrow}")
     b_bar = np.zeros(nrow)
     
     varnames = prob.variables.get_names()
@@ -161,7 +161,7 @@ def get_tableau(prob,A,b):
     #print("b_bar = ", b_bar)
     idx = 0     # Compute the nonzeros
     n_cuts = 0  # Number of fractional variables (cuts to be generated)
-    print('\n\t\t\t\t\t LP relaxation final tableau:\n')
+    print('\n\t LP relaxation final tableau:\n')
     # Binv_A = prob.solution.advanced.binvarow() 
     
     for i in range(nrow):
@@ -278,7 +278,7 @@ def get_tableau(prob,A,b):
 
 def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) : 
     '''
-    
+
     Arguments:
         n_cuts
         ncol
@@ -290,7 +290,6 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
         gc_lhs
         gc_rhs 
     '''
-    
     cuts = np.zeros([n_cuts,ncol])
     cut_limits= []
     gc_sense = [''] * n_cuts
@@ -380,8 +379,8 @@ def generate_gc(mkp, A, gc_lhs, gc_rhs, names) :
             else:
                 cut_string_parts.append(f"{fj} {names[j]}")
             cuts[i].append(float(coefficient))
-    
-        
+
+
         cut_senses.append('G')
         cuts_limits.append(float(current_gc_rhs)) # Aggiunge il RHS corretto
         # Completa la stringa per la stampa

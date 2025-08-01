@@ -64,10 +64,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
                var.set_integer(False)
          except:
             continue
-    
     t0 = time.time()
     
-
     ampl_relax.solve()
     y_vals = ampl_relax.get_variable('y').get_values().to_dict()
     # print("Valori di y:")
@@ -86,10 +84,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # for idx, val in y_vals.items():
     #     print(f"y[{idx}] = {val}")
     
-   
-
     already_integer = is_integral(x_vals)
-
 
     if already_integer:
         print ("SOLUZIONE GIA' INTERA\n");
@@ -112,12 +107,13 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         }
     
     ## COSTRUISCO INSTANZA PROBLEMA CON CPLEX
+    # per applicare i tagli di gomory
+    # estrapolo i dati dal dataset
     facilities, clients, f_vector, c_param, demands = parse_dat_file(data_path)
     assert np.all(np.array(demands) != 0)
     assert np.all(np.array(c_param) >= 0)
     m = len(facilities)
     n = len(clients)
-    #print(c_param)
     c,A,b = getProblemData(f_vector, c_param,demands)   # c -> m + n*m variabili
     nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n vincoli
 
@@ -126,16 +122,17 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     
     
     nCols= nCols + n*m          # numero variabili totali 'y' + 'x' + 's'
-    #################################################################
-    print("numero colonne: ", nCols, "numero righe: ", nRows)
+    ### recap dei dati
     # m facilities                          --> m variabili 'y'
     # n clienti                             --> n*m variabili 'x'
     # n*m variabili di slack per standatizzare il modello
     # numero di colonne = numero variabili  --> m + n*m + n*m    
     # numero righe = numero vincoli         -->  n + n*m         
-    #################################################################
-    print("<<<< CALCOLO ISTANZA CPLEX>>>>")
+
+    print("\n\n<<<< CALCOLO ISTANZA CPLEX>>>>")
     prob = cplex.Cplex()
+    prob.set_log_stream(None)
+    prob.set_results_stream(None)
     prob.set_problem_name("istanza1") #nominiamo istanza
     prob.objective.set_sense(prob.objective.sense.minimize)
     params = prob.parameters
@@ -145,25 +142,17 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # print("NUMERO VARIABILI DEL PROBLEMA ",prob.variables.get_num())
     prob.variables.add(names=names)
         
-    print("QUIQUIQUI")
-    # Add variables 
+    # agginiungo variabili 'y' e 'x'
     for i in range(nCols-2*n*m):
         prob.variables.set_lower_bounds(i, lower_bounds[i])
         prob.variables.set_upper_bounds(i, upper_bounds[i])
-    # Add slack
+    # aggiungo variabili di slack 's'
     for i in range(nCols-2*m*n,nCols):
         prob.variables.set_lower_bounds(i, lower_bounds[i])
 
 
-    #Add slack to constraints
     A = A.tolist()
-    # for row in range(nRows):
-        # for slack in range(nRows): 
-            # if row==slack: 
-                # A[row].append(1)
-            # else:
-                # A[row].append(0)
-                
+    # aggiungo i vincoli         
     for i in range(nRows):
         # print(f"Row {i}: len(A[i]) = {len(A[i])}, expected {nCols}")
         # print(f"rhs: {b[i]}, sense: {constraint_senses[i]}, name: {constraint_names[i]}")
@@ -174,15 +163,12 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             names = [constraint_names[i]], 
             senses = [constraint_senses[i]]
         )
-
         
-    # Add objective function -----------------------------------------------------------
-    
+    # aggiungo la funzione obiettivo -----------------------------------------------------------
     for i in range(nCols-n*m): 
         prob.objective.set_linear([(i, c[i])])
  
-    
-    print("risolvo istanza cplex")
+    #print("risolvo istanza cplex")
     prob.solve()
     print(f"valore soluzione cplex = {prob.solution.get_objective_value()}")
     print("-----------------calcolo tableau ---------------------")
@@ -190,9 +176,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     #print(b_bar)
     print("Possibili tagli", n_cuts)
     #b_bar vettore dei termini noti
-    
-    print("Mi preparo per tagli")
-
+    #rint("Mi preparo per tagli")
     varnames = prob.variables.get_names()
     gc_lhs, gc_rhs = initialize_fract_gc(n_cuts,nCols , prob, varnames, b_bar)
     
@@ -202,7 +186,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     #gc_lhs: matrice dei coefficienti delle disuguaglianze Gomory (left-hand side)
     #gc_rhs: termini noti (right-hand side) delle disuguaglianze
 
-    print("Genero tagli")
+    #print("Genero tagli")
     cuts, cuts_limits, cut_senses = generate_gc(prob, A, gc_lhs, gc_rhs, names) 
     # cuts: lista dei coefficienti dei tagli (uno per ciascun vincolo)
     # cuts_limits: lista dei termini noti (right-hand side) dei tagli
@@ -211,7 +195,6 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     #print(cut_senses)
     print_solution(prob)
 
-    print("Print a schermo")
     print(f"Numero di tagli generati: {len(cuts)}")
     
     counter = 0 
@@ -221,7 +204,6 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         # 1. Estrai il taglio corrente
         indici = [j for j, val in enumerate(cuts[i]) if val != 0]
         valori = [cuts[i][j] for j in indici]
-        print(f"aggiunto taglio {i}")
         # 2. Aggiungilo al modello CPLEX
         prob.linear_constraints.add(
             lin_expr=[cplex.SparsePair(ind=indici, val=valori)],
@@ -234,31 +216,30 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
 
         # 4. Stampa la nuova soluzione
-       # print(prob)  # Assicurati di aver definito questa funzione
-        print("\n========== SOLUZIONE CORRENTE ==========")
+        #print(f"\n========== SOLUZIONE CORRENTE ==========\n\tIterazione {i+1}")
         try:
-            obj_value = prob.solution.get_objective_value()
+            obj_value_cplex = prob.solution.get_objective_value()
             var_names = prob.variables.get_names()
             var_values = prob.solution.get_values()
-            if obj_value == obj_prev : 
+            if obj_value_cplex == obj_prev : 
                 counter +=1
             else : 
                 counter = 0 
-            obj_prev = obj_value
+            obj_prev = obj_value_cplex
 
-            print(f"Valore funzione obiettivo: {obj_value:.4f}\n")
-            print("Valori delle variabili:")
-            for name, val in zip(var_names, var_values):
-                if name.startswith('y') :
-                    print(f"   {name} = {val:.4f}")
+            #print(f"Valore funzione obiettivo: {obj_value_cplex:.4f}\n")
+            # print("Valori delle variabili:")
+            # for name, val in zip(var_names, var_values):
+            #     if name.startswith('y') :
+            #         print(f"   {name} = {val:.4f}")
         except Exception as e:
             print("Errore nel recupero della soluzione:", e)
         if counter ==5: 
-            print("La soluzione non migliora")
+            print(f"La soluzione non migliora ulteriormente dopo iterazione {i}")
             break
 
 
-
+    
     print("\n***** GOMORY CUTS *****");
     # 3. Gomory: tutti i tagli
     # ampl_all = AMPL()
@@ -287,7 +268,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         "istanza": os.path.basename(data_path),
         "obj_int": obj_int,
         "time_int": time_int,
-        "obj_relax": obj_relax,
+        "obj_relax": obj_value_cplex,
         "time_relax": time_relax,
         "gap_relax": gap_relax,
         # "obj_gomory_all": obj_all,
@@ -310,7 +291,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 def main():
     modello_intero = "ufl.mod"
     modello_relax = "ufl_relax.mod"
-    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("74.dat")])
+    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith(".dat")])
     print("File .dat trovati:", istanze)
     risultati = []
     #istanze = istanze[1:2]
