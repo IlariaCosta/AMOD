@@ -120,7 +120,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     #print(c_param)
     c,A,b = getProblemData(f_vector, c_param,demands)   # c -> m + n*m variabili
     nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n vincoli
-    # print(demands)
+
     # inizializzo instanza delle variabili con i telaviti UB e LB
     names, lower_bounds, upper_bounds,constraint_senses,constraint_names = initializeInstanceVariables(n,m) 
     
@@ -208,7 +208,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # cuts_limits: lista dei termini noti (right-hand side) dei tagli
     # cut_senses: lista dei sensi dei vincoli (es. <= → 'L')
 
-    print(cut_senses)
+    #print(cut_senses)
     print_solution(prob)
 
     print("Print a schermo")
@@ -221,7 +221,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         # 1. Estrai il taglio corrente
         indici = [j for j, val in enumerate(cuts[i]) if val != 0]
         valori = [cuts[i][j] for j in indici]
-
+        print(f"aggiunto taglio {i}")
         # 2. Aggiungilo al modello CPLEX
         prob.linear_constraints.add(
             lin_expr=[cplex.SparsePair(ind=indici, val=valori)],
@@ -249,7 +249,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             print(f"Valore funzione obiettivo: {obj_value:.4f}\n")
             print("Valori delle variabili:")
             for name, val in zip(var_names, var_values):
-                if name.startswith('y') and abs(val) > 1e-6:
+                if name.startswith('y') :
                     print(f"   {name} = {val:.4f}")
         except Exception as e:
             print("Errore nel recupero della soluzione:", e)
@@ -310,7 +310,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 def main():
     modello_intero = "ufl.mod"
     modello_relax = "ufl_relax.mod"
-    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("71_restricted.dat")])
+    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("74.dat")])
     print("File .dat trovati:", istanze)
     risultati = []
     #istanze = istanze[1:2]

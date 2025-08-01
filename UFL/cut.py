@@ -315,7 +315,7 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
                                                         # optimal tableau in the problem instance
             rmatbeg[cut] = idx
             for j in range(ncol):
-                z[j] = z[j] - np.floor(z[j])
+                z[j] = z[j] - np.floor(z[j]) #calcolo l parte frazionaria
              
                 if z[j] != 0:
                     rmatind[idx] = j
@@ -330,8 +330,8 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
                         num, den = (fj.numerator, fj.denominator)
                         print(f'{num}/{den} {varnames[j]} ', end='',file=output)
            
-            gc_lhs[index,:] = z
-            cuts[index,:]= z
+            gc_lhs[cut,:] = z
+            cuts[cut,:]= z
             gc_rhs[cut] = b_bar[i] - np.copy(np.floor(b_bar[i])) # np.copy as above
             #print(gc_rhs[cut])
             gc_sense[cut] = 'L'
@@ -344,63 +344,70 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
             contents = output.getvalue()
             output.close()
             logging.info(contents)
-            index +=1
+            #index +=1
+            #print("\n\tgc_rhs = ", gc_rhs)
     return gc_lhs, gc_rhs   # lhs è la parte sinistra del taglio
                             # rhs è la parte destra del taglio
 
 def generate_gc(mkp, A, gc_lhs, gc_rhs, names) : 
-    ''' 
-    Arguments:
-        mkp
-        A
-        gc_lhs
-        gc_rhs
-        names
-    returns:
-        cuts
-        cuts_limits
-        cut_senses
-    '''
+    
     logging.info('*** GOMORY CUTS ***\n')
     cuts = []
     cuts_limits = []
     cut_senses = []
-    for i, gc in enumerate(gc_lhs):
+    print(len(gc_lhs))
+    print("\tQUI")
+    for i in range(len(gc_lhs)):
         output = io.StringIO()
+  
+        current_gc_lhs = gc_lhs[i] # Coefficienti del taglio corrente
+        #print(current_gc_lhs)
+        current_gc_rhs = gc_rhs[i] # Termine noto del taglio corrente
         cuts.append([])
-        lhs, rhs = get_lhs_rhs(mkp, gc_lhs[i], gc_rhs[i], A)
+        
+        #lhs, rhs = get_lhs_rhs(mkp, gc_lhs[i], gc_rhs[i], A)
         # Print the cut
-        for j in range(len(lhs)):
-            if -lhs[j] > 0:
-                print('+', end = '',file=output)
-            if (-lhs[j] != 0):
-                print(f'{-lhs[j]} {names[j]} ', end='',file=output)
-                cuts[i].append(-lhs[j])
-            if (-lhs[j] == 0):
-                print(f'{-lhs[j]} {names[j]} ', end='',file=output)
-                cuts[i].append(0)
-        print(f'<= {-rhs[0]}\n', end='',file=output)
-        cuts_limits.append(-rhs[0])
-        cut_senses.append('L')
-        contents = output.getvalue()
-        output.close()
-        logging.info(contents)
-        #print(contents)
+        cut_string_parts = []
+        for j in range(len(current_gc_lhs)): # Itera su tutte le variabili nel taglio
+            coefficient = current_gc_lhs[j]
+            fj = fractions.Fraction(coefficient).limit_denominator()
+            if len(cut_string_parts) > 0 and fj > 0:
+                cut_string_parts.append("+")
+            if fj == 1:
+                cut_string_parts.append(f"{names[j]}")
+            elif fj == -1:
+                cut_string_parts.append(f"- {names[j]}")
+            else:
+                cut_string_parts.append(f"{fj} {names[j]}")
+            cuts[i].append(float(coefficient))
+    
+        
+        cut_senses.append('G')
+        cuts_limits.append(float(current_gc_rhs)) # Aggiunge il RHS corretto
+        # Completa la stringa per la stampa
+        final_cut_string = " ".join(cut_string_parts)
+        print(f"{final_cut_string} >= {fractions.Fraction(current_gc_rhs).limit_denominator()}", file=output)
+
+        
     return cuts, cuts_limits, cut_senses
 
 def get_lhs_rhs(prob, cut_row, cut_rhs, A):
-
+    
     ncol = len(A[0])
     cut_row = np.append(cut_row, cut_rhs)
     b = np.array(prob.linear_constraints.get_rhs())
-    A = np.append(A, b.reshape(-1, 1), axis=1)
-    plotted_vars = np.nonzero(prob.objective.get_linear())[0]
+    A_ext = np.append(A, b.reshape(-1, 1), axis=1)  # aggiungo alla matrice A la colonna dei termini noti b
+    plotted_vars = np.nonzero(prob.objective.get_linear())[0]   # salvo gli indici delle variabili vere
+    n_plotted_vars = len(plotted_vars)
     # Assumption: plotted variables are at the beginning of the initial tableau
     for i, sk in enumerate(range(len(plotted_vars), ncol)):
         cut_coef = cut_row[sk]
-        cut_row -= A[i,:] * cut_coef
+        cut_row -= A_ext[i,:] * cut_coef
+    #print( "========>> ", cut_row[ncol:])    
     lhs = cut_row[:len(plotted_vars)]
+    #print( "========>> ", cut_row[ncol:])
     rhs = cut_row[ncol:]
+
     return lhs, rhs
     
 def print_solution(prob): # : cplex.Cplex()):
