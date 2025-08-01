@@ -208,12 +208,16 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # cuts_limits: lista dei termini noti (right-hand side) dei tagli
     # cut_senses: lista dei sensi dei vincoli (es. <= → 'L')
 
-    print(cuts)
+    print(cut_senses)
     print_solution(prob)
 
     print("Print a schermo")
     print(f"Numero di tagli generati: {len(cuts)}")
+    
+    counter = 0 
+    obj_prev = 0
     for i in range(len(cuts)):
+        
         # 1. Estrai il taglio corrente
         indici = [j for j, val in enumerate(cuts[i]) if val != 0]
         valori = [cuts[i][j] for j in indici]
@@ -228,6 +232,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         # 3. Risolvi il problema aggiornato
         prob.solve()
 
+
         # 4. Stampa la nuova soluzione
        # print(prob)  # Assicurati di aver definito questa funzione
         print("\n========== SOLUZIONE CORRENTE ==========")
@@ -235,14 +240,22 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             obj_value = prob.solution.get_objective_value()
             var_names = prob.variables.get_names()
             var_values = prob.solution.get_values()
-            
+            if obj_value == obj_prev : 
+                counter +=1
+            else : 
+                counter = 0 
+            obj_prev = obj_value
+
             print(f"Valore funzione obiettivo: {obj_value:.4f}\n")
-            #print("Valori delle variabili:")
-            #for name, val in zip(var_names, var_values):
-            #    if abs(val) > 1e-6:  # evita di stampare zeri numerici
-            #        print(f"  {name} = {val:.4f}")
+            print("Valori delle variabili:")
+            for name, val in zip(var_names, var_values):
+                if name.startswith('y') and abs(val) > 1e-6:
+                    print(f"   {name} = {val:.4f}")
         except Exception as e:
             print("Errore nel recupero della soluzione:", e)
+        if counter ==5: 
+            print("La soluzione non migliora")
+            break
 
 
 
