@@ -24,11 +24,10 @@ def getProblemData(f, c_matrix, demands, capacity) -> Tuple:
         b: vettore termini noti (shape n + m*n,)
     """
     m = len(f)             # numero facilities
-    print("numero facilities ->", m)
     c_matrix = np.transpose(c_matrix)
     c_matriX = np.array(c_matrix)
     n = c_matrix.shape[1]  # numero clienti
-    print("numero clienti ->",n)
+    print("numero clienti ->",n,"; numero facilities ->", m)
     # calcolo vettore coefficienti funzione obiettivo
     # [f_1..f_m, c_11, c_12, ..., c_mn]
     c = np.concatenate((f, c_matrix.flatten()))
@@ -43,14 +42,14 @@ def getProblemData(f, c_matrix, demands, capacity) -> Tuple:
     # inizializza matrice di zeri
     A = np.zeros((num_constraints, num_vars))
     b = np.zeros(num_constraints)
-    print("\n qui")
+    #print("\n qui")
     # Cliente j assegnato ad una sola facility
     # le prime n righe descrivono i vincoli
     for j in range(n):
         for i in range(m):
             A[j][m + i * n + j] = 1
         b[j] = 1
-    print("\n qui")
+    #print("\n qui")
     # Vincoli x_ij <= y_i (equivalente a -y_i + x_ij <= 0)
     # da riga n a riga n + m*n -1
     # per ogni i,j
@@ -65,7 +64,7 @@ def getProblemData(f, c_matrix, demands, capacity) -> Tuple:
             A[row_idx, s_idx] = 1
             b[row_idx] = 0
             #print(row_idx, y_idx,x_idx,s_idx)
-    print("\n qui")
+    #print("\n qui")
     # d[j] * x[j,i] - capacity[i] * y[i] + s_c[i]<= 0
     # da riga n+n*m fino a n + n*m + m
     start_capacity_row = n + (n*m)
@@ -99,27 +98,27 @@ def initializeInstanceVariables(n,m) :
         names.append("y"+str(i))
         lower_bounds.append(0.0)
         upper_bounds.append(1.0)
-    print("lunghezza nomi dopo y: ", len(names))
+    #print("lunghezza nomi dopo y: ", len(names))
     # variables x
     for i in range(m):
         for j in range(n):
             names.append("x"+str(i)+str(j))
             lower_bounds.append(0.0)
             upper_bounds.append(1.0)
-    print("lunghezza nomi dopo x: ", len(names))
+    #print("lunghezza nomi dopo x: ", len(names))
     
     # variables s
     for i in range(m):
         for j in range(n):
             names.append("s"+str(i)+str(j))
             lower_bounds.append(0.0)
-    print("lunghezza nomi dopo s: ", len(names))
+    #print("lunghezza nomi dopo s: ", len(names))
 
     # variablile c_cap
     for i in range(m):
         names.append("s_c"+str(i))
         lower_bounds.append(0.0)
-    print("lunghezza nomi dopo s_c: ", len(names))
+    #print("lunghezza nomi dopo s_c: ", len(names))
         
     # Vincoli
     for i in range(n + m * n + m):
@@ -174,10 +173,10 @@ def get_tableau(prob,A,b):
     try:
         nrow = prob.linear_constraints.get_num()
         ncol = prob.variables.get_num()
-        print(f"numero colonne {ncol}")
+        #print(f"numero colonne {ncol}")
     except Exception as e:
         print("Errore durante l'accesso a prob:", e)
-    print(f"numero colonne {ncol}, numero righe {nrow}")
+    #print(f"numero colonne {ncol}, numero righe {nrow}")
     b_bar = np.zeros(nrow)
     
     varnames = prob.variables.get_names()
@@ -189,7 +188,7 @@ def get_tableau(prob,A,b):
     #print("b_bar = ", b_bar)
     idx = 0     # Compute the nonzeros
     n_cuts = 0  # Number of fractional variables (cuts to be generated)
-    print('\n\t LP relaxation final tableau:\n')
+    #print('\n\t LP relaxation final tableau:\n')
     # Binv_A = prob.solution.advanced.binvarow() 
     
     for i in range(nrow):
@@ -381,8 +380,8 @@ def generate_gc(mkp, A, gc_lhs, gc_rhs, names) :
     cuts = []
     cuts_limits = []
     cut_senses = []
-    print(len(gc_lhs))
-    print("\tQUI")
+    #print(len(gc_lhs))
+    #print("\tQUI")
     for i in range(len(gc_lhs)):
         output = io.StringIO()
   
