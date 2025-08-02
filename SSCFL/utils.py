@@ -75,6 +75,7 @@ def parse_dat_file(filepath):
     f_param = {}
     c_param = []
     demands_dict = {}
+    capacity_dict = {}
     reading = None
 
     for line in lines:
@@ -91,13 +92,15 @@ def parse_dat_file(filepath):
         elif line.startswith("param f"):
             reading = "f"
             continue
-        elif line.startswith("param c"):
+        elif line.startswith("param cost"):
             reading = "c"
             c_param = []
             continue
         elif line.startswith("param d"):
             reading = "d"  # ignoriamo
             continue
+        elif line.startswith("param capacity"):
+            reading = "cap"
 
         # Lettura dei costi f
         if reading == "f":
@@ -129,17 +132,27 @@ def parse_dat_file(filepath):
             parts = line.split()
             if len(parts) == 2:
                 demands_dict[int(parts[0])] = float(parts[1])
+
+        # Lettura delle capacità
+        elif reading == "cap":
+            if ";" in line:
+                line = line.replace(";", "")
+                reading = None
+            parts = line.split()
+            if len(parts) == 2:
+                capacity_dict[int(parts[0])] = float(parts[1])
     
     c_param = [row[1:] for row in c_param]
     # Ordina f_param secondo l'ordine dei facilities
     f_vector = [f_param[i] for i in sorted(facilities)]
     demands = [demands_dict[i] for i in sorted(demands_dict.keys())]
-    return facilities, clients, f_vector, c_param, demands
+    capacity = [capacity_dict[i] for i in sorted(capacity_dict.keys())]
+    return facilities, clients, f_vector, c_param, demands, capacity
 
 def build_A_b(facilities, clients, demands):
     m = len(facilities)
     n = len(clients)
-    slack = n*m;
+    slack = n*m +m;
     var_count = m * n + m + slack
     row_count = n + m * n
     print("lunghezza domanda")
@@ -157,17 +170,18 @@ def build_A_b(facilities, clients, demands):
     
     def slack_index(i,j):
         return m * n + m + (i*n +j)  # slack iniziano dopo x e y
+
+    def slack_c_index(i):
+        return m*n + m + i
         
     # Cliente j deve essere assegnato a una sola facility
     for j in range(n):
         for i in range(m):
             A[j][x_index(i, j)] = 1
-        b[j] = demands[j]
+        b[j] = 1
 
     # x_ij ≤ y_i
-    row = n
-    
-    
+    row = n   
     for i in range(m):      #ciente
         for j in range(n):  #facil
             A[row][x_index(i, j)] = 1
@@ -175,6 +189,8 @@ def build_A_b(facilities, clients, demands):
             A[row][slack_index(i,j)] = 1  # coefficiente slack +1
             b[row] = 0
             row += 1
+    # la domanda non deve superare l'offerta
+    #sum {j in CLIENTS} d[j] * x[j,i] - capacity[i] * y[i] + s_c[i] = 0;
 
     print("A e b pronte\n")
     # print(b)

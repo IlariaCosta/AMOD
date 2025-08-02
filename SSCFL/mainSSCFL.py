@@ -112,22 +112,22 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         }
     
     ## COSTRUISCO INSTANZA PROBLEMA CON CPLEX
-    facilities, clients, f_vector, c_param, demands = parse_dat_file(data_path)
+    facilities, clients, f_vector, c_param, demands, capacity = parse_dat_file(data_path)
     assert np.all(np.array(demands) != 0)
     assert np.all(np.array(c_param) >= 0)
     m = len(facilities)
     n = len(clients)
-    print(c_param)
-    c,A,b = getProblemData(f_vector, c_param,demands)   # c -> m + n*m variabili
-    nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n vincoli
+    #print(c_param)
+    c,A,b = getProblemData(f_vector, c_param,demands, capacity)   # c -> m + n*m variabili
+    nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n + m vincoli (clienti + clienti*faciliy + facility)
     
     # inizializzo instanza delle variabili con i telaviti UB e LB
     names, lower_bounds, upper_bounds,constraint_senses,constraint_names = initializeInstanceVariables(n,m) 
     
     
-    nCols= nCols + n*m          # numero variabili totali 'y' + 'x' + 's'
+    nCols= nCols + n*m + m          # numero variabili totali 'y' + 'x' + 's' (clienti*facility + facility)
     #################################################################
-    print("numero colonne: ", nCols, "numero righe: ", nRows)
+    print("numero variabili: ", nCols, "numero vincoli: ", nRows)
     # m facilities                          --> m variabili 'y'
     # n clienti                             --> n*m variabili 'x'
     # n*m variabili di slack per standatizzare il modello
@@ -136,6 +136,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     #################################################################
     print("<<<< CALCOLO ISTANZA CPLEX>>>>")
     prob = cplex.Cplex()
+    prob.set_log_stream(None)
+    prob.set_results_stream(None)
     prob.set_problem_name("istanza1") #nominiamo istanza
     prob.objective.set_sense(prob.objective.sense.minimize)
     params = prob.parameters
@@ -147,11 +149,11 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     
     
     # Add variables 
-    for i in range(nCols-n*m):
+    for i in range(nCols-(n*m + m)):
         prob.variables.set_lower_bounds(i, lower_bounds[i])
         prob.variables.set_upper_bounds(i, upper_bounds[i])
     # Add slack
-    for i in range(nCols-nRows,nCols):
+    for i in range(nCols-(n*m + m),nCols):
         prob.variables.set_lower_bounds(i, lower_bounds[i])
 
     #Add slack to constraints
@@ -174,13 +176,14 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             senses = [constraint_senses[i]]
         )
         
-    # Add objective function -----------------------------------------------------------
-    
-    for i in range(nCols-n*m): 
+    # aggiungo funzione obiettivo -----------------------------------------------------------
+    # con le variabili reali (quindi non considero quelle di slack)
+    for i in range(nCols-(n*m + m)): 
         prob.objective.set_linear([(i, c[i])])
     
-    print("risolvo istanza cplex")
+    #print("risolvo istanza cplex")
     prob.solve()
+    print(f"valore soluzione cplex = {prob.solution.get_objective_value()}")
     print("-----------------calcolo tableau ---------------------")
     n_cuts, b_bar = get_tableau(prob,A,b)
     print("Possibili tagli", n_cuts)
@@ -193,22 +196,24 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     #gc_lhs: matrice dei coefficienti delle disuguaglianze Gomory (left-hand side)
     #gc_rhs: termini noti (right-hand side) delle disuguaglianze
 
-    print("Genero tagli")
+    #print("Genero tagli")
     cuts, cuts_limits, cut_senses = generate_gc(prob, A, gc_lhs, gc_rhs, names) 
     # cuts: lista dei coefficienti dei tagli (uno per ciascun vincolo)
     # cuts_limits: lista dei termini noti (right-hand side) dei tagli
     # cut_senses: lista dei sensi dei vincoli (es. <= → 'L')
 
-    print("Print nel log")
+    #print("Print nel log")
     print_solution(prob)
 
-    print("Print a schermo")
+    #print("Print a schermo")
     print(f"Numero di tagli generati: {len(cuts)}")
+    counter = 0 
+    obj_prev = 0
     for i in range(len(cuts)):
+        
         # 1. Estrai il taglio corrente
         indici = [j for j, val in enumerate(cuts[i]) if val != 0]
         valori = [cuts[i][j] for j in indici]
-
         # 2. Aggiungilo al modello CPLEX
         prob.linear_constraints.add(
             lin_expr=[cplex.SparsePair(ind=indici, val=valori)],
@@ -221,19 +226,26 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
         # 4. Stampa la nuova soluzione
        # print(prob)  # Assicurati di aver definito questa funzione
-        print("\n========== SOLUZIONE CORRENTE ==========")
+        #print("\n========== SOLUZIONE CORRENTE ==========")
         try:
-            obj_value = prob.solution.get_objective_value()
+            obj_value_cplex = prob.solution.get_objective_value()
             var_names = prob.variables.get_names()
             var_values = prob.solution.get_values()
+            if obj_value_cplex == obj_prev : 
+                counter +=1
+            else : 
+                counter = 0 
+            obj_prev = obj_value_cplex
             
-            print(f"Valore funzione obiettivo: {obj_value:.4f}\n")
-            print("Valori delle variabili:")
-            for name, val in zip(var_names, var_values):
-                if abs(val) > 1e-6:  # evita di stampare zeri numerici
-                    print(f"  {name} = {val:.4f}")
+            # print("Valori delle variabili:")
+            # for name, val in zip(var_names, var_values):
+            #     if abs(val) > 1e-6:  # evita di stampare zeri numerici
+            #         print(f"  {name} = {val:.4f}")
         except Exception as e:
             print("Errore nel recupero della soluzione:", e)
+        if counter ==10: 
+            print(f"La soluzione non migliora ulteriormente dopo iterazione {i}")
+            break
 
 
 
@@ -258,17 +270,17 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     #-----------------------------------------------------------------------------------------------------------------------
     
     # tagli(ampl_relax,mod_path_int, mod_path_relax, data_path)
-    y_vals = ampl_relax.get_variable('y').get_values().to_dict()
-    print("Valori di y:")
-    for idx, val in y_vals.items():
-        print(f"y[{idx}] = {val}")
+    # y_vals = ampl_relax.get_variable('y').get_values().to_dict()
+    # print("Valori di y:")
+    # for idx, val in y_vals.items():
+    #     print(f"y[{idx}] = {val}")
 
 
     return {
         "istanza": os.path.basename(data_path),
         "obj_int": obj_int,
         "time_int": time_int,
-        "obj_relax": obj_relax,
+        "obj_relax": obj_value_cplex,
         "time_relax": time_relax,
         "gap_relax": gap_relax,
         # "obj_gomory_all": obj_all,
@@ -291,7 +303,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 def main():
     modello_intero = "sscfl.mod"
     modello_relax = "sscfl_relax.mod"
-    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("43.dat")])
+    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith(".dat")])
     print("File .dat trovati:", istanze)
     risultati = []
     #istanze = istanze[1:2]
@@ -306,12 +318,12 @@ def main():
             return
 
     # Scrittura CSV
-    if risultati:
-        with open("risultati_sscfl.csv", "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=risultati[0].keys())
-            writer.writeheader()
-            writer.writerows(risultati)
-    print("\nTutto completato. Risultati salvati in risultati_ufl.csv.")
+    #if risultati:
+        # with open("risultati_sscfl.csv", "w", newline="") as f:
+        #     writer = csv.DictWriter(f, fieldnames=risultati[0].keys())
+        #     writer.writeheader()
+        #     writer.writerows(risultati)
+    #print("\nTutto completato. Risultati salvati in risultati_ufl.csv.")
 
     # Risultati finali
     print("Risultati finali:")

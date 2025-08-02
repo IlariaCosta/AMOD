@@ -8,13 +8,16 @@ param cut_i {CUTS};
 
 param f {FACILITIES} >= 0;                # costo apertura facility
 param d {CLIENTS} >= 0;                   # domanda cliente
-param c {CLIENTS, FACILITIES} >= 0;      # costo trasporto cliente-facility
+param cost {CLIENTS, FACILITIES} >= 0;      # costo trasporto cliente-facility
 param capacity {FACILITIES} >= 0;         # capacità facility
+
 
 param cut_type {CUTS} symbolic;
 
 var x {CLIENTS, FACILITIES} >= 0, <=1;       # assegnazione clienti (single source)
 var y {FACILITIES} >= 0, <=1;                 # apertura facility
+var s {CLIENTS,FACILITIES} >= 0;  		     # variabili slack 
+var s_c {FACILITIES} >= 0;  		     # variabili slack 
 
 # Ogni cliente è assegnato a una sola facility
 s.t. Assign {j in CLIENTS}:
@@ -22,15 +25,12 @@ s.t. Assign {j in CLIENTS}:
 
 # Non assegnare clienti a facility chiuse
 s.t. OpenLink {i in FACILITIES, j in CLIENTS}:
-    x[j,i] <= y[i];
+    x[j,i] - y[i] + s[j,i] = 0;
 
 # Capacità: domanda totale assegnata a facility i non supera capacità i
 s.t. Capacity {i in FACILITIES}:
-    sum {j in CLIENTS} d[j] * x[j,i] <= capacity[i] * y[i];
-
-
-
+    sum {j in CLIENTS} d[j] * x[j,i] - capacity[i] * y[i] + s_c[i] = 0;
 
 # Funzione obiettivo: costi apertura + costi trasporto
 minimize TotalCost:
-    sum {i in FACILITIES} f[i]*y[i] + sum {j in CLIENTS, i in FACILITIES} c[j,i]*x[j,i];
+    sum {i in FACILITIES} f[i]*y[i] + sum {j in CLIENTS, i in FACILITIES} cost[j,i]*x[j,i];

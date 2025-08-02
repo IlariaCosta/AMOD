@@ -10,7 +10,7 @@ columns=["name", "cluster_type", "nvar","nconstraints","optimal_sol","sol","sol_
 
 logging.basicConfig(filename='resolution.log', format='%(asctime)s - %(message)s',level=logging.INFO, datefmt='%d-%b-%y %H:%M:%S')
 
-def getProblemData(f, c_matrix, demands) -> Tuple:
+def getProblemData(f, c_matrix, demands, capacity) -> Tuple:
     """
     Costruisce vettore c, matrice A e vettore b per la formulazione LP del problema UFL.
 
@@ -33,23 +33,24 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
     # [f_1..f_m, c_11, c_12, ..., c_mn]
     c = np.concatenate((f, c_matrix.flatten()))
     
-    # Numero variabili = m + m*n
-    num_vars = m + m * n + m * n
-    
-    # Numero vincoli = n + m*n
+    # Numero variabili = m + m*n (+ slack (facility*cliente + facility))
+    num_vars = m + m * n + (m * n + m)
+    print(f"numero variabili = {num_vars}")
+   
+    # Numero vincoli = n + m*n + m
     num_constraints = n + m * n + m
-
+    print(f"numero vincoli = {num_constraints}")
     # inizializza matrice di zeri
     A = np.zeros((num_constraints, num_vars))
     b = np.zeros(num_constraints)
-    
-    # Cliente j domanda soddisfatta
+    print("\n qui")
+    # Cliente j assegnato ad una sola facility
     # le prime n righe descrivono i vincoli
     for j in range(n):
         for i in range(m):
             A[j][m + i * n + j] = 1
-        b[j] = demands[j]
-
+        b[j] = 1
+    print("\n qui")
     # Vincoli x_ij <= y_i (equivalente a -y_i + x_ij <= 0)
     # da riga n a riga n + m*n -1
     # per ogni i,j
@@ -63,14 +64,24 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
             A[row_idx, x_idx] = 1
             A[row_idx, s_idx] = 1
             b[row_idx] = 0
-            print(row_idx, y_idx,x_idx,s_idx)
-
+            #print(row_idx, y_idx,x_idx,s_idx)
+    print("\n qui")
+    # d[j] * x[j,i] - capacity[i] * y[i] + s_c[i]<= 0
+    # da riga n+n*m fino a n + n*m + m
+    start_capacity_row = n + (n*m)
+    for i in range(m):
+        row_idx = start_capacity_row +i
+        y_idx = i
+        A[row_idx][y_idx] = -capacity[i]
+        for j in range(n):
+            x_idx = m + i * n + j
+            s_c_idx = (2* m * n + m) + (i)
+            #print(f"indice y = {y_idx}\n indice x = {x_idx} \n indice s = {s_idx} ====> riga {row_idx}")            
+            A[row_idx][x_idx] = demands[j]
+            A[row_idx][s_c_idx] = 1
+        b[row_idx] = 0
     print("dimensioni matrice A: ", len(A), len(A[0]))
-    obj = 0
-    for i in range(num_constraints):
-        for j in range(num_vars):
-            if A[i][j]!= 0: print(A[i][j])
-    print(obj)
+    
     return c, A, b
     
    
@@ -103,10 +114,15 @@ def initializeInstanceVariables(n,m) :
             names.append("s"+str(i)+str(j))
             lower_bounds.append(0.0)
     print("lunghezza nomi dopo s: ", len(names))
-                  
+
+    # variablile c_cap
+    for i in range(m):
+        names.append("s_c"+str(i))
+        lower_bounds.append(0.0)
+    print("lunghezza nomi dopo s_c: ", len(names))
         
-    # Constraint 
-    for i in range(n + n*m):
+    # Vincoli
+    for i in range(n + m * n + m):
         constraint_names.append("c"+str(i))
         constraint_senses.append("E")
     
@@ -126,20 +142,27 @@ def get_tableau(prob,A,b):
     '''
    # print(help(prob.solution))
     #print(prob.solution.get_indicator_slack())
-    sol_status = prob.solution.get_status_string()
-    print(sol_status)
-    if sol_status in [prob.solution.status.optimal,prob.solution.status.optimal_tolerance]:
-    # La soluzione è valida, quindi puoi chiedere lo stato delle variabili
-        col_status, row_status = prob.solution.basis.get_status()
+    b_bar = np.zeros(len(b))
+    for i in range(len(b)):
+        # Ottieni la riga i-esima di B^-1
+        binv_row = prob.solution.advanced.binvrow(i)
+        b_bar[i] = np.dot(binv_row, b)
+
     
-    basic_indices = [i for i, status in enumerate(col_status) if status == prob.basis.status.basic]
-    nonbasic_indices = [i for i, status in enumerate(col_status) if status != prob.basis.status.basic]
+    # sol_status = prob.solution.get_status_string()
+    # print(sol_status)
+    # if sol_status in [prob.solution.status.optimal,prob.solution.status.optimal_tolerance]:
+    # # La soluzione è valida, quindi puoi chiedere lo stato delle variabili
+    #     col_status, row_status = prob.solution.basis.get_status()
     
-    for i, basic_var_index in enumerate(basic_indices):
-        binv_row = prob.solution.advanced.binvrow(i) # Questo è corretto
-        b_bar_i = np.dot(binv_row, b)
-        if abs(b_bar_i - round(b_bar_i)) > 1e-6:
-            print("valore frazionario")
+    # basic_indices = [i for i, status in enumerate(col_status) if status == prob.basis.status.basic]
+    # nonbasic_indices = [i for i, status in enumerate(col_status) if status != prob.basis.status.basic]
+    
+    # for i, basic_var_index in enumerate(basic_indices):
+    #     binv_row = prob.solution.advanced.binvrow(i) # Questo è corretto
+    #     b_bar_i = np.dot(binv_row, b)
+    #     if abs(b_bar_i - round(b_bar_i)) > 1e-6:
+    #         print("valore frazionario")
     # print(help(prob.solution.advanced))
     # print("calcolo B inversa")
     # BinvA = np.array(prob.solution.advanced.binvarow())
@@ -159,17 +182,14 @@ def get_tableau(prob,A,b):
     
     varnames = prob.variables.get_names()
     b = prob.linear_constraints.get_rhs()
-    print("b = ", b)
-    b = np.array(b)
-    print("b = ", b)
+    #print("b = ", b)
     mat_Binv = prob.solution.advanced.binvrow()
     Binv = np.array(mat_Binv)
-    print("Binv =", Binv)
     b_bar = np.matmul(Binv, b)
-    print("b_bar = ", b_bar)
+    #print("b_bar = ", b_bar)
     idx = 0     # Compute the nonzeros
     n_cuts = 0  # Number of fractional variables (cuts to be generated)
-    print('\n\t\t\t\t\t LP relaxation final tableau:\n')
+    print('\n\t LP relaxation final tableau:\n')
     # Binv_A = prob.solution.advanced.binvarow() 
     
     for i in range(nrow):
@@ -194,7 +214,7 @@ def get_tableau(prob,A,b):
             val = z[j]
             # printf'z[{j}] = {val}')  # 👈 AGGIUNGI QUESTO
             if abs(val - round(val)) > 1e-6: 
-                print(f'z[{j}] = {val}')
+                #print(f'z[{j}] = {val}')
                 zj = fractions.Fraction(z[j]).limit_denominator(1000)
                 num = zj.numerator
                 den = zj.denominator
@@ -310,16 +330,18 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
     rmatval  = np.zeros(ncol)
     logging.info('Generating Gomory cuts...\n')
     cut = 0  #  Index of cut to be added
-    for i in range(n_cuts):
+    for i in range(len(b_bar)):
         idx = 0
         output = io.StringIO()
+        
         if np.floor(b_bar[i]) != b_bar[i]:
             print(f'Row {i+1} gives cut -> ', end = '', file=output)
+            #print("sono entrato qui dentro")
             z = np.copy(prob.solution.advanced.binvarow(i)) # Use np.copy to avoid changing the
                                                         # optimal tableau in the problem instance
             rmatbeg[cut] = idx
             for j in range(ncol):
-                z[j] = z[j] - np.floor(z[j])
+                z[j] = z[j] - np.floor(z[j]) #calcolo l parte frazionaria
              
                 if z[j] != 0:
                     rmatind[idx] = j
@@ -334,9 +356,10 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
                         num, den = (fj.numerator, fj.denominator)
                         print(f'{num}/{den} {varnames[j]} ', end='',file=output)
            
-            gc_lhs[i,:] = z
-            cuts[i,:]= z
+            gc_lhs[cut,:] = z
+            cuts[cut,:]= z
             gc_rhs[cut] = b_bar[i] - np.copy(np.floor(b_bar[i])) # np.copy as above
+            #print(gc_rhs[cut])
             gc_sense[cut] = 'L'
             gc_rhs_i = fractions.Fraction(gc_rhs[cut]).limit_denominator()
             num = gc_rhs_i.numerator
@@ -347,46 +370,51 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
             contents = output.getvalue()
             output.close()
             logging.info(contents)
-    return gc_lhs, gc_rhs
+            #index +=1
+            #print("\n\tgc_rhs = ", gc_rhs)
+    return gc_lhs, gc_rhs   # lhs è la parte sinistra del taglio
+                            # rhs è la parte destra del taglio
 
 def generate_gc(mkp, A, gc_lhs, gc_rhs, names) : 
-    '''
     
-    Arguments:
-        mkp
-        A
-        gc_lhs
-        gc_rhs
-        names
-    returns:
-        cuts
-        cuts_limits
-        cut_senses
-    '''
     logging.info('*** GOMORY CUTS ***\n')
     cuts = []
     cuts_limits = []
     cut_senses = []
-    for i, gc in enumerate(gc_lhs):
+    print(len(gc_lhs))
+    print("\tQUI")
+    for i in range(len(gc_lhs)):
         output = io.StringIO()
+  
+        current_gc_lhs = gc_lhs[i] # Coefficienti del taglio corrente
+        #print(current_gc_lhs)
+        current_gc_rhs = gc_rhs[i] # Termine noto del taglio corrente
         cuts.append([])
-        lhs, rhs = get_lhs_rhs(mkp, gc_lhs[i], gc_rhs[i], A)
+        
+        #lhs, rhs = get_lhs_rhs(mkp, gc_lhs[i], gc_rhs[i], A)
         # Print the cut
-        for j in range(len(lhs)):
-            if -lhs[j] > 0:
-                print('+', end = '',file=output)
-            if (-lhs[j] != 0):
-                print(f'{-lhs[j]} {names[j]} ', end='',file=output)
-                cuts[i].append(-lhs[j])
-            if (-lhs[j] == 0):
-                print(f'{-lhs[j]} {names[j]} ', end='',file=output)
-                cuts[i].append(0)
-        print(f'<= {-rhs[0]}\n', end='',file=output)
-        cuts_limits.append(-rhs[0])
-        cut_senses.append('L')
-        contents = output.getvalue()
-        output.close()
-        logging.info(contents)
+        cut_string_parts = []
+        for j in range(len(current_gc_lhs)): # Itera su tutte le variabili nel taglio
+            coefficient = current_gc_lhs[j]
+            fj = fractions.Fraction(coefficient).limit_denominator()
+            if len(cut_string_parts) > 0 and fj > 0:
+                cut_string_parts.append("+")
+            if fj == 1:
+                cut_string_parts.append(f"{names[j]}")
+            elif fj == -1:
+                cut_string_parts.append(f"- {names[j]}")
+            else:
+                cut_string_parts.append(f"{fj} {names[j]}")
+            cuts[i].append(float(coefficient))
+
+
+        cut_senses.append('G')
+        cuts_limits.append(float(current_gc_rhs)) # Aggiunge il RHS corretto
+        # Completa la stringa per la stampa
+        final_cut_string = " ".join(cut_string_parts)
+        print(f"{final_cut_string} >= {fractions.Fraction(current_gc_rhs).limit_denominator()}", file=output)
+
+        
     return cuts, cuts_limits, cut_senses
 
 def get_lhs_rhs(prob, cut_row, cut_rhs, A):

@@ -1,2 +1,2 @@
-istanza,obj_int,time_int,obj_relax,time_relax,gap_relax,obj_gomory_all,time_gomory_all,iter_gomory_all,gap_gomory_all,obj_gomory_step,time_gomory_step,iter_gomory_step,gap_gomory_step,nota
-cap41_restricted.dat,221203.1625,0.06415581703186035,221203.1625,0.04949331283569336,0,221203.1625,0,0,0,221203.1625,0,0,0,Relax già intero
+istanza,obj_int,time_int,obj_relax,time_relax,gap_relax,nota
+cap41.dat,945566.0875,0.09693145751953125,833239.9997587064,0.059592247009277344,0.4821720708125335,
