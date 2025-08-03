@@ -27,18 +27,18 @@ def getProblemData(f, c_matrix, demands, capacity) -> Tuple:
     c_matrix = np.transpose(c_matrix)
     c_matriX = np.array(c_matrix)
     n = c_matrix.shape[1]  # numero clienti
-    print("numero clienti ->",n,"; numero facilities ->", m)
+    print("\tnumero clienti =",n," ; numero facilities =", m)
     # calcolo vettore coefficienti funzione obiettivo
     # [f_1..f_m, c_11, c_12, ..., c_mn]
     c = np.concatenate((f, c_matrix.flatten()))
     
     # Numero variabili = m + m*n (+ slack (facility*cliente + facility))
     num_vars = m + m * n + (m * n + m)
-    print(f"numero variabili = {num_vars}")
+
    
     # Numero vincoli = n + m*n + m
     num_constraints = n + m * n + m
-    print(f"numero vincoli = {num_constraints}")
+    print(f"\tnumero vincoli = {num_constraints} ; numero variabili = {num_vars}")
     # inizializza matrice di zeri
     A = np.zeros((num_constraints, num_vars))
     b = np.zeros(num_constraints)
@@ -79,7 +79,7 @@ def getProblemData(f, c_matrix, demands, capacity) -> Tuple:
             A[row_idx][x_idx] = demands[j]
             A[row_idx][s_c_idx] = 1
         b[row_idx] = 0
-    print("dimensioni matrice A: ", len(A), len(A[0]))
+    #print("dimensioni matrice A: ", len(A), len(A[0]))
     
     return c, A, b
     

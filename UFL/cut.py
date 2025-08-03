@@ -24,11 +24,12 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
         b: vettore termini noti (shape n + m*n,)
     """
     m = len(f)             # numero facilities
-    print("numero facilities ->", m)
+    
     c_matrix = np.transpose(c_matrix)
     #print(len(c_matrix), len(c_matrix[0]))
     c_matriX = np.array(c_matrix)
     n = c_matrix.shape[1]  # numero clienti
+    print("\tnumero clienti =",n," ; numero facilities =", m)
     #print("numero clienti ->",n)
     # calcolo vettore coefficienti funzione obiettivo
     # [f_1..f_m, c_11, c_12, ..., c_mn]
@@ -39,7 +40,7 @@ def getProblemData(f, c_matrix, demands) -> Tuple:
     
     # Numero vincoli = n + m*n
     num_constraints = n + (m * n)
-
+    print(f"\tnumero vincoli = {num_constraints} ; numero variabili = {num_vars}")
     # inizializza matrice di zeri
     A = np.zeros((num_constraints, num_vars))
     b = np.zeros(num_constraints)
@@ -161,7 +162,7 @@ def get_tableau(prob,A,b):
     #print("b_bar = ", b_bar)
     idx = 0     # Compute the nonzeros
     n_cuts = 0  # Number of fractional variables (cuts to be generated)
-    print('\n\t LP relaxation final tableau:\n')
+    #print('\n\t LP relaxation final tableau:\n')
     # Binv_A = prob.solution.advanced.binvarow() 
     
     for i in range(nrow):
@@ -354,8 +355,8 @@ def generate_gc(mkp, A, gc_lhs, gc_rhs, names) :
     cuts = []
     cuts_limits = []
     cut_senses = []
-    print(len(gc_lhs))
-    print("\tQUI")
+    #print(len(gc_lhs))
+    #print("\tQUI")
     for i in range(len(gc_lhs)):
         output = io.StringIO()
   

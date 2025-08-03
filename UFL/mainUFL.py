@@ -34,7 +34,7 @@ from cut import (
  
 def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # 1. CARICO MODELLO INTERO
-    print("\n========SOLUZIONE INTERA========");
+    print("=================================================================")
     ampl = AMPL()
     ampl.set_option('solver', 'cplexamp')
     ampl.read(mod_path_int)
@@ -47,10 +47,10 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     time_int = time.time() - t0
     
     obj_int = ampl.obj['TotalCost'].value()
-
+    print(f"\n\tSoluzione intera  = {obj_int}");
 
     # 2. CARICO MODELLO RILASSATO
-    print("\n========SOLUZIONE RILASSATA===========");
+    print("=================================================================")
     ampl_relax = AMPL()
     ampl_relax.set_option('solver', 'cplexamp')
     ampl_relax.read(mod_path_relax)
@@ -75,7 +75,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     time_relax = time.time() - t0
     
     obj_relax = ampl_relax.obj['TotalCost'].value()
-    
+    print(f"\n\tSoluzione rilassata = {obj_relax:.4f}");
     gap_relax = compute_gap(obj_relax, obj_int)
     
     x_vals = list(ampl_relax.get_variable('y').get_values().to_dict().values())
@@ -106,6 +106,11 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             "nota": "Relax già intero"
         }
     
+    print("=================================================================")
+    print(f"|\t\t\t\t\t\t\t\t|\n|\t\t\tGOMORY CUTS\t\t\t\t|\n|\t\t\t\t\t\t\t\t|")
+    print("=================================================================")
+    print("|\t\tTAGLI DI GOMORY UNO ALLA VOLTA\t\t\t|")
+    print("=================================================================")
     ## COSTRUISCO INSTANZA PROBLEMA CON CPLEX
     # per applicare i tagli di gomory
     # estrapolo i dati dal dataset
@@ -129,7 +134,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # numero di colonne = numero variabili  --> m + n*m + n*m    
     # numero righe = numero vincoli         -->  n + n*m         
 
-    print("\n\n<<<< CALCOLO ISTANZA CPLEX>>>>")
+    #print("\n\n<<<< CALCOLO ISTANZA CPLEX>>>>")
     prob = cplex.Cplex()
     prob.set_log_stream(None)
     prob.set_results_stream(None)
@@ -170,8 +175,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
  
     #print("risolvo istanza cplex")
     prob.solve()
-    print(f"valore soluzione cplex = {prob.solution.get_objective_value()}")
-    print("-----------------calcolo tableau ---------------------")
+    #print(f"valore soluzione cplex = {prob.solution.get_objective_value()}")
+    #print("-----------------calcolo tableau ---------------------")
     n_cuts, b_bar = get_tableau(prob,A,b)
     #print(b_bar)
     print("Possibili tagli", n_cuts)
@@ -195,10 +200,11 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     #print(cut_senses)
     print_solution(prob)
 
-    print(f"Numero di tagli generati: {len(cuts)}")
+    #print(f"Numero di tagli generati: {len(cuts)}")
     
     counter = 0 
     obj_prev = 0
+    print("=================================================================")
     for i in range(len(cuts)):
         
         # 1. Estrai il taglio corrente
@@ -226,6 +232,12 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             else : 
                 counter = 0 
             obj_prev = obj_value_cplex
+            print("-----------------------------------------------------------------")
+            if i<10:
+                print(f"| {i}° iterazione   Valore funzione obiettivo: {obj_value_cplex:.4f}\t|")
+            else:
+                print(f"| {i}° iterazione  Valore funzione obiettivo: {obj_value_cplex:.4f}\t|")
+                
 
             #print(f"Valore funzione obiettivo: {obj_value_cplex:.4f}\n")
             # print("Valori delle variabili:")
@@ -235,21 +247,26 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         except Exception as e:
             print("Errore nel recupero della soluzione:", e)
         if counter ==5: 
+            print("-----------------------------------------------------------------")
             print(f"La soluzione non migliora ulteriormente dopo iterazione {i}")
             break
 
 
     
-    print("\n***** GOMORY CUTS *****");
+    #print("\n***** GOMORY CUTS *****");
     # 3. Gomory: tutti i tagli
-    # ampl_all = AMPL()
-    # ampl_all.read(mod_path_relax)
-    # ampl_all.read_data(data_path)
-    # obj_all, time_all, iter_all = solve_with_gomory(ampl_all, all_cuts=True)
-    # gap_all = compute_gap(obj_all, obj_int)
-    # print(f"Obj rilassato: {obj_relax}")
-    # print(f"Obj dopo tagli Gomory: {obj_all}")
-    # print(f"Gap Gomory all: {gap_all:.4f}%")
+    print("=================================================================")
+    print("|\t\tTAGLI DI GOMORY TUTTI INSIEME\t\t\t|")
+    print("=================================================================")
+    ampl_all = AMPL()
+    ampl_relax.set_option('solver_msg', 0)
+    ampl_all.read(mod_path_relax)
+    ampl_all.read_data(data_path)
+    obj_all, time_all, iter_all = solve_with_gomory(ampl_all, all_cuts=True)
+    gap_all = compute_gap(obj_all, obj_int)
+    print(f"\n\tValore soluzione Rilassata: \t\t {obj_relax:.4f}")
+    print(f"\tValore soluzione rilassata dopo i tagli: {obj_all:.4f}")
+    print(f"\tGap Gomory all: {gap_all:.4f}%")
 
 
     # 4. Gomory: uno alla volta
@@ -296,7 +313,8 @@ def main():
     risultati = []
     #istanze = istanze[1:2]
     for ist in istanze:
-        print(f"\nElaborazione {ist}...")
+        print("=================================================================")
+        print(f"|\t\t\t\t\t\t\t\t|\n|\t\tElaborazione {ist}...\t\t\t|\n|\t\t\t\t\t\t\t\t|")
         try:
             res = run_sscfl_experiment(modello_intero, modello_relax, ist)
             risultati.append(res)
@@ -318,7 +336,10 @@ def main():
     for res in risultati:
         max_len = max(len(k) for k in res.keys())  # per allineare i due punti
         for key, value in res.items():
-            print(f"{key.ljust(max_len)} : {value}")
+            if type(value) is int or type(value) is float :
+                print(f"{key.ljust(max_len)} :{value:.4f}")
+            else:
+                print(f"{key.ljust(max_len)} :{value}")
         print("-" * 40)
 
 
