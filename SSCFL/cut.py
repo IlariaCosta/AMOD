@@ -148,60 +148,30 @@ def get_tableau(prob,A,b):
         b_bar[i] = np.dot(binv_row, b)
 
     
-    # sol_status = prob.solution.get_status_string()
-    # print(sol_status)
-    # if sol_status in [prob.solution.status.optimal,prob.solution.status.optimal_tolerance]:
-    # # La soluzione è valida, quindi puoi chiedere lo stato delle variabili
-    #     col_status, row_status = prob.solution.basis.get_status()
-    
-    # basic_indices = [i for i, status in enumerate(col_status) if status == prob.basis.status.basic]
-    # nonbasic_indices = [i for i, status in enumerate(col_status) if status != prob.basis.status.basic]
-    
-    # for i, basic_var_index in enumerate(basic_indices):
-    #     binv_row = prob.solution.advanced.binvrow(i) # Questo è corretto
-    #     b_bar_i = np.dot(binv_row, b)
-    #     if abs(b_bar_i - round(b_bar_i)) > 1e-6:
-    #         print("valore frazionario")
-    # print(help(prob.solution.advanced))
-    # print("calcolo B inversa")
-    # BinvA = np.array(prob.solution.advanced.binvarow())
-    # print("calcolata B inversa")
-    # nrow = BinvA.shape[0]
-    # ncol = BinvA.shape[1]
-    # nrow = prob.linear_constraints.get_num()
-    # ncol = prob.variables.get_num()
     try:
         nrow = prob.linear_constraints.get_num()
         ncol = prob.variables.get_num()
-        #print(f"numero colonne {ncol}")
     except Exception as e:
         print("Errore durante l'accesso a prob:", e)
-    #print(f"numero colonne {ncol}, numero righe {nrow}")
     b_bar = np.zeros(nrow)
     
     varnames = prob.variables.get_names()
     b = prob.linear_constraints.get_rhs()
-    #print("b = ", b)
     mat_Binv = prob.solution.advanced.binvrow()
     Binv = np.array(mat_Binv)
     b_bar = np.matmul(Binv, b)
-    #print("b_bar = ", b_bar)
     idx = 0     # Compute the nonzeros
     n_cuts = 0  # Number of fractional variables (cuts to be generated)
-    #print('\n\t LP relaxation final tableau:\n')
-    # Binv_A = prob.solution.advanced.binvarow() 
+
     
     for i in range(nrow):
         output_t = io.StringIO()
         z = prob.solution.advanced.binvarow(i)
-        # z = Binv_A[i]
-        # print("popolo z numero -> ", i)
-        # print("prima")
-        # print(ncol)
+        
         for j in range(ncol):
             if z[j] > 0:
                 print('+', end='',file=output_t)
-            # print(z[j])
+
             zj = fractions.Fraction(z[j]).limit_denominator(1000)
             num = zj.numerator
             den = zj.denominator
@@ -209,15 +179,13 @@ def get_tableau(prob,A,b):
                 print(f'{num}/{den} {varnames[j]} ', end='',file=output_t)
             elif num == den:
                 print(f'{varnames[j]} ', end='',file=output_t)
-                # print(z[j])
+
             val = z[j]
-            # printf'z[{j}] = {val}')  # 👈 AGGIUNGI QUESTO
+
             if abs(val - round(val)) > 1e-6: 
-                #print(f'z[{j}] = {val}')
                 zj = fractions.Fraction(z[j]).limit_denominator(1000)
                 num = zj.numerator
                 den = zj.denominator
-                # print(num, den)
                 if num != 0 and num != den:
                     print(f'{num}/{den} {varnames[j]} ', end='',file=output_t)
                 else :
@@ -230,17 +198,13 @@ def get_tableau(prob,A,b):
         
         num = b_bar_i.numerator
         den = b_bar_i.denominator
-        # print(n_cuts)
+
         print(f'= {num}/{den}',file=output_t)
-        # print("z popolato")
-        # print("prima")
+
         contents = output_t.getvalue()
         logging.info("%s",contents)
         output_t.close()
 
-        # Count the number of cuts to be generated
-        #print(f"DEBUG: b_bar[{i}] = {b_bar[i]}, floor(b_bar[{i}]) = {np.floor(b_bar[i])}")
-        
         # Count the number of cuts to be generated
         if np.floor(b_bar[i]) != b_bar[i]:
             n_cuts += 1    
@@ -248,65 +212,9 @@ def get_tableau(prob,A,b):
     return n_cuts , b_bar
 
 
-# def determineOptimal(instance, cluster_type):
-#     '''
-#     This function determines the optimal solution of the given instance.
-    
-#     Arguments:
-#         instance
-#     '''
-#     c, A, b = getProblemData(instance) 
-#     nCols, nRows = (len(c), len(b))
-#     # Get the instance name
-#     txtname = instance.split("/")[2]
-#     name = txtname.split(".txt")[0]
-#     cplexlog = name+".log"
-#     #Program variables section ####################################################
-#     names = []
-#     all_constraints = []
-#     constraint_names = []
-#     constraint_senses = []
-#     # Variables 
-#     for i in range(nCols):
-#         names.append("x"+str(i))
-#     # Constraint 
-#     for i in range(nRows):
-#         constraint_names.append("c"+str(i))
-#         constraint_senses.append("L")
-#     with cplex.Cplex() as mkp:
-#         mkp.set_problem_name(name)
-#         mkp.objective.set_sense(mkp.objective.sense.maximize)
-#         mkp.set_log_stream(None)
-#         mkp.set_error_stream(None)
-#         mkp.set_warning_stream(None)
-#         mkp.set_results_stream(None)
-#         params = mkp.parameters
-#         # Disable presolve 
-#         params.preprocessing.presolve.set(0) 
-#         # Add variables & Slack --------------------------------------------------------------------
-#         mkp.variables.add(names=names, types=[mkp.variables.type.binary] * nCols)
-#         # Add contraints -------------------------------------------------------------------
-#         for i in range(nRows):
-#             mkp.linear_constraints.add(lin_expr= [cplex.SparsePair(ind= [j for j in range(nCols)], val= A[i])],
-#              rhs= [b[i]], names = [constraint_names[i]], senses = [constraint_senses[i]])
-#             all_constraints.append(A[i])
-#         # Add objective function -----------------------------------------------------------
-#         for i in range(nCols): 
-#             mkp.objective.set_linear([(i, c[i])])
-#         # Resolve the problem instance
-#         mkp.solve()
-#         # Report the results 
-#         logging.info("\n\t\t\t\t\t\t*** OPTIMAL PLI SOLUTION ***")
-#         print_solution(mkp)
-#         mkp.write("lp/"+cluster_type+"/"+name+"/optimal.lp")
-#         mkp.solution.write("solutions/"+cluster_type+"/"+name+"/optimal.log")
-#         optimal_sol= mkp.solution.get_objective_value()
-#     return optimal_sol
-
 
 def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) : 
     '''
-    
     Arguments:
         n_cuts
         ncol
@@ -318,7 +226,6 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
         gc_lhs
         gc_rhs 
     '''
-    
     cuts = np.zeros([n_cuts,ncol])
     cut_limits= []
     gc_sense = [''] * n_cuts
@@ -335,7 +242,6 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
         
         if np.floor(b_bar[i]) != b_bar[i]:
             print(f'Row {i+1} gives cut -> ', end = '', file=output)
-            #print("sono entrato qui dentro")
             z = np.copy(prob.solution.advanced.binvarow(i)) # Use np.copy to avoid changing the
                                                         # optimal tableau in the problem instance
             rmatbeg[cut] = idx
@@ -358,7 +264,6 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
             gc_lhs[cut,:] = z
             cuts[cut,:]= z
             gc_rhs[cut] = b_bar[i] - np.copy(np.floor(b_bar[i])) # np.copy as above
-            #print(gc_rhs[cut])
             gc_sense[cut] = 'L'
             gc_rhs_i = fractions.Fraction(gc_rhs[cut]).limit_denominator()
             num = gc_rhs_i.numerator
@@ -369,8 +274,7 @@ def initialize_fract_gc(n_cuts,ncol , prob, varnames, b_bar) :
             contents = output.getvalue()
             output.close()
             logging.info(contents)
-            #index +=1
-            #print("\n\tgc_rhs = ", gc_rhs)
+
     return gc_lhs, gc_rhs   # lhs è la parte sinistra del taglio
                             # rhs è la parte destra del taglio
 
@@ -380,17 +284,14 @@ def generate_gc(mkp, A, gc_lhs, gc_rhs, names) :
     cuts = []
     cuts_limits = []
     cut_senses = []
-    #print(len(gc_lhs))
-    #print("\tQUI")
+
     for i in range(len(gc_lhs)):
         output = io.StringIO()
   
         current_gc_lhs = gc_lhs[i] # Coefficienti del taglio corrente
-        #print(current_gc_lhs)
         current_gc_rhs = gc_rhs[i] # Termine noto del taglio corrente
         cuts.append([])
         
-        #lhs, rhs = get_lhs_rhs(mkp, gc_lhs[i], gc_rhs[i], A)
         # Print the cut
         cut_string_parts = []
         for j in range(len(current_gc_lhs)): # Itera su tutte le variabili nel taglio
@@ -413,7 +314,6 @@ def generate_gc(mkp, A, gc_lhs, gc_rhs, names) :
         final_cut_string = " ".join(cut_string_parts)
         print(f"{final_cut_string} >= {fractions.Fraction(current_gc_rhs).limit_denominator()}", file=output)
 
-        
     return cuts, cuts_limits, cut_senses
 
 def get_lhs_rhs(prob, cut_row, cut_rhs, A):
@@ -434,10 +334,8 @@ def get_lhs_rhs(prob, cut_row, cut_rhs, A):
 def print_solution(prob):# : cplex.Cplex()):
     '''
     This function print solution of problem (cplex.Cplex())
-    
     Arguments:
         problem -- cplex.Cplex()
-    
     '''
     ncol = len(prob.variables.get_cols())
     nrow = len(prob.linear_constraints.get_rows())

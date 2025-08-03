@@ -14,8 +14,7 @@ from utils import (
     mat_mul
 )
 from gomory import (
-    solve_with_gomory,
-    tagli
+    solve_with_gomory
 )
 from cut import (
     getProblemData,
@@ -35,20 +34,15 @@ from cut import (
 def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # 1. CARICO MODELLO INTERO
     print("=================================================================")
-
-    
     ampl = AMPL()
-    
     ampl.set_option('solver', 'cplexamp')
     ampl.set_option('solver_msg', 0)
     ampl.read(mod_path_int)
     ampl.read_data(data_path)
     ampl.set_option('cplex_options', 'mipgap=0')
    
-    
     t0 = time.time()
-    ampl.solve()
-    
+    ampl.solve() 
     time_int = time.time() - t0
     
     obj_int = ampl.obj['TotalCost'].value()
@@ -57,8 +51,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # 2. CARICO MODELLO RILASSATO
     print("=================================================================")
     ampl_relax = AMPL()
-    ampl_relax.set_option('solver_msg', 0)
     ampl_relax.set_option('solver', 'cplexamp')
+    ampl_relax.set_option('solver_msg', 0)
     ampl_relax.read(mod_path_relax)
     ampl_relax.read_data(data_path)
 
@@ -72,14 +66,9 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             continue
     
     t0 = time.time()
-    
-
     ampl_relax.solve()
     y_vals = ampl_relax.get_variable('y').get_values().to_dict()
-    # print("Valori di y:")
-    # for idx, val in y_vals.items():
-    #     print(f"y[{idx}] = {val}")
-
+    
     time_relax = time.time() - t0
     
     obj_relax = ampl_relax.obj['TotalCost'].value()
@@ -89,14 +78,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     
     x_vals = list(ampl_relax.get_variable('y').get_values().to_dict().values())
 
-    # print("Valori di y:")
-    # for idx, val in y_vals.items():
-    #     print(f"y[{idx}] = {val}")
-    
-   
-
     already_integer = is_integral(x_vals)
-
 
     if already_integer:
         print ("SOLUZIONE GIA' INTERA\n");
@@ -117,6 +99,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             "gap_gomory_step": 0,
             "nota": "Relax già intero"
         }
+    #3. Gomory un taglio alla volta
     print("=================================================================")
     print(f"|\t\t\t\t\t\t\t\t|\n|\t\t\tGOMORY CUTS\t\t\t\t|\n|\t\t\t\t\t\t\t\t|")
     print("=================================================================")
@@ -128,7 +111,6 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     assert np.all(np.array(c_param) >= 0)
     m = len(facilities)
     n = len(clients)
-    #print(c_param)
     c,A,b = getProblemData(f_vector, c_param,demands, capacity)   # c -> m + n*m variabili
     nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n + m vincoli (clienti + clienti*faciliy + facility)
     
@@ -136,16 +118,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     names, lower_bounds, upper_bounds,constraint_senses,constraint_names = initializeInstanceVariables(n,m) 
     
     
-    nCols= nCols + n*m + m          # numero variabili totali 'y' + 'x' + 's' (clienti*facility + facility)
-    #################################################################
-    #print("numero variabili: ", nCols, "numero vincoli: ", nRows)
-    # m facilities                          --> m variabili 'y'
-    # n clienti                             --> n*m variabili 'x'
-    # n*m variabili di slack per standatizzare il modello
-    # numero di colonne = numero variabili  --> m + n*m + n*m    
-    # numero righe = numero vincoli         -->  n + n*m         
-    #################################################################
-    #print("<<<< CALCOLO ISTANZA CPLEX>>>>")
+    nCols= nCols + n*m + m    # numero variabili totali 'y' + 'x' + 's' (clienti*facility + facility)
+
     prob = cplex.Cplex()
     prob.set_log_stream(None)
     prob.set_results_stream(None)
@@ -155,7 +129,6 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     params.preprocessing.presolve.set(0) 
     params.preprocessing.linear.set(0)
     params.preprocessing.reduce.set(0)
-    # print("NUMERO VARIABILI DEL PROBLEMA ",prob.variables.get_num())
     prob.variables.add(names=names)
     
     
@@ -169,16 +142,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
     #Add slack to constraints
     A = A.tolist()
-    # for row in range(nRows):
-        # for slack in range(nRows): 
-            # if row==slack: 
-                # A[row].append(1)
-            # else:
-                # A[row].append(0)
                 
     for i in range(nRows):
-        # print(f"Row {i}: len(A[i]) = {len(A[i])}, expected {nCols}")
-        # print(f"rhs: {b[i]}, sense: {constraint_senses[i]}, name: {constraint_names[i]}")
         prob.linear_constraints.add(
             lin_expr= [cplex.SparsePair(ind= [j for j in range(nCols)], 
             val= A[i])], 
@@ -191,8 +156,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     # con le variabili reali (quindi non considero quelle di slack)
     for i in range(nCols-(n*m + m)): 
         prob.objective.set_linear([(i, c[i])])
-    
-    #print("risolvo istanza cplex")
+
+    t0 = time.time()
     prob.solve()
     #print(f"valore soluzione cplex = {prob.solution.get_objective_value()}")
     #print("-----------------calcolo tableau ---------------------")
@@ -264,18 +229,16 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             print("-----------------------------------------------------------------")
             print(f"\tDopo {i} iterazioni non ci sono miglioramenti")
             break
-
-
-
+    time_step = time.time() - t0
+    obj_step = obj_value_cplex
+    gap_step = compute_gap(obj_step, obj_int)
     
-    # 3. Gomory: tutti i tagli
+    # 4. Gomory: tutti i tagli
     print("=================================================================")
     print("|\t\tTAGLI DI GOMORY TUTTI INSIEME\t\t\t|")
     print("=================================================================")
     ampl_all = AMPL()
-    # Disabilita tutta la stampa da AMPL
     ampl_relax.set_option('show_stats', 0)
-    #ampl_relax.set_option('display_1col_stub', 0)
     ampl_relax.set_option('solver_msg', 0)
     ampl_all.read(mod_path_relax)
     ampl_all.read_data(data_path)
@@ -285,22 +248,6 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     print(f"\tValore soluzione rilassata dopo i tagli: {obj_all:.4f}")
     print(f"\tGap Gomory all: {gap_all:.4f}%")
 
-
-    # 4. Gomory: uno alla volta
-    # ampl_step = AMPL()
-    # ampl_step.read(mod_path_relax)
-    # ampl_step.read_data(data_path)
-    # obj_step, time_step, iter_step = solve_with_gomory(ampl_step, all_cuts=False)
-    # gap_step = compute_gap(obj_step, obj_int)
-    #-----------------------------------------------------------------------------------------------------------------------
-    
-    # tagli(ampl_relax,mod_path_int, mod_path_relax, data_path)
-    # y_vals = ampl_relax.get_variable('y').get_values().to_dict()
-    # print("Valori di y:")
-    # for idx, val in y_vals.items():
-    #     print(f"y[{idx}] = {val}")
-
-
     return {
         "istanza": os.path.basename(data_path),
         "obj_int": obj_int,
@@ -309,14 +256,14 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         "obj_cplex" : obj_value_cplex,
         "time_relax": time_relax,
         "gap_relax": gap_relax,
-        # "obj_gomory_all": obj_all,
-        # "time_gomory_all": time_all,
+        "obj_gomory_all": obj_all,
+        "time_gomory_all": time_all,
         # "iter_gomory_all": iter_all,
-        # "gap_gomory_all": gap_all,
-        #  "obj_gomory_step": obj_step,
-        # "time_gomory_step": time_step,
+        "gap_gomory_all": gap_all,
+        "obj_gomory_step": obj_step,
+        "time_gomory_step": time_step,
         # "iter_gomory_step": iter_step,
-        #  "gap_gomory_step": gap_step,
+        "gap_gomory_step": gap_step,
         "nota": ""
     }
 
@@ -329,10 +276,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 def main():
     modello_intero = "sscfl.mod"
     modello_relax = "sscfl_relax.mod"
-    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith(".dat")])
-    #print("File .dat trovati:", istanze)
+    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("41.dat")])
     risultati = []
-    #istanze = istanze[1:2]
     for ist in istanze:
         print("=================================================================")
         print(f"|\t\t\t\t\t\t\t\t|\n|\t\tElaborazione {ist}...\t\t\t|\n|\t\t\t\t\t\t\t\t|")
@@ -344,20 +289,11 @@ def main():
             risultati.append({"istanza": ist, "nota": f"Errore: {e}"})
             return
 
-    # Scrittura CSV
-    #if risultati:
-        # with open("risultati_sscfl.csv", "w", newline="") as f:
-        #     writer = csv.DictWriter(f, fieldnames=risultati[0].keys())
-        #     writer.writeheader()
-        #     writer.writerows(risultati)
-    #print("\nTutto completato. Risultati salvati in risultati_ufl.csv.")
-
     # Risultati finali
     print("=================================================================")
     print("Risultati finali:")
     max_len = 15
     for res in risultati:
-        #max_len = max(len(k) for k in res.keys())  # per allineare i due punti
         for key, value in res.items():
             if type(value) is int or type(value) is float :
                 print(f"{key.ljust(max_len)} :{value:.4f}")
@@ -365,9 +301,6 @@ def main():
                 print(f"{key.ljust(max_len)} :{value}")
 
         print("-" * 40)
-
-    
-
 
 if __name__ == "__main__":
     main()

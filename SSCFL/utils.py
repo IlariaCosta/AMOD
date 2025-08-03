@@ -193,15 +193,7 @@ def build_A_b(facilities, clients, demands):
     #sum {j in CLIENTS} d[j] * x[j,i] - capacity[i] * y[i] + s_c[i] = 0;
 
     print("A e b pronte\n")
-    # print(b)
-    # # Stampa matrice A
-    # print("Matrice A:")
-    # for row in A:
-    #     print(row)
 
-    # # Stampa vettore b
-    # print("\nVettore b:")
-    # print(b)
 
     return A, b
 
