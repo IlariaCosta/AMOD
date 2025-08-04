@@ -36,15 +36,15 @@ def solve_with_gomory(ampl, all_cuts, max_iter=100, min_improvement=1e-3):
 
     already_cut = set()
 
-    if all_cuts:
-        ampl.set_option('gomory_cuts', -1)  # all available
-        ampl.set_option('solver_msg', 0)
-        t0 = time.time()
-        ampl.solve()
-        elapsed = time.time() - t0
-        var_values = list(ampl.get_variable('y').get_values().to_dict().values())
-        #print(var_values)
-     
-        obj = ampl.obj['TotalCost'].value()
-        return obj, elapsed, 1
+    #if all_cuts:
+    ampl.set_option('gomory_cuts', -1)  # all available
+    ampl.set_option('solver_msg', 0)
+    t0 = time.time()
+    ampl.solve()
+    elapsed = time.time() - t0
+    var_values = list(ampl.get_variable('y').get_values().to_dict().values())
+    #print(var_values)
+    
+    obj = ampl.obj['TotalCost'].value()
+    return obj, elapsed, 1
     

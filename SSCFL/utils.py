@@ -97,7 +97,7 @@ def parse_dat_file(filepath):
             c_param = []
             continue
         elif line.startswith("param d"):
-            reading = "d"  # ignoriamo
+            reading = "d"  
             continue
         elif line.startswith("param capacity"):
             reading = "cap"
