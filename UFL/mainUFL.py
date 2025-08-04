@@ -112,8 +112,6 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     print("|\t\tTAGLI DI GOMORY UNO ALLA VOLTA\t\t\t|")
     print("=================================================================")
     ## COSTRUISCO INSTANZA PROBLEMA CON CPLEX
-    # per applicare i tagli di gomory
-    # estrapolo i dati dal dataset
     facilities, clients, f_vector, c_param, demands = parse_dat_file(data_path)
     assert np.all(np.array(demands) != 0)
     assert np.all(np.array(c_param) >= 0)
@@ -123,18 +121,14 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n vincoli
 
     # inizializzo instanza delle variabili con i telaviti UB e LB
-    names, lower_bounds, upper_bounds,constraint_senses,constraint_names = initializeInstanceVariables(n,m) 
-    
+    (names, 
+     lower_bounds, 
+     upper_bounds,
+     constraint_senses,
+     constraint_names) = initializeInstanceVariables(n,m) 
     
     nCols= nCols + n*m          # numero variabili totali 'y' + 'x' + 's'
-    ### recap dei dati
-    # m facilities                          --> m variabili 'y'
-    # n clienti                             --> n*m variabili 'x'
-    # n*m variabili di slack per standatizzare il modello
-    # numero di colonne = numero variabili  --> m + n*m + n*m    
-    # numero righe = numero vincoli         -->  n + n*m         
-
-    #print("\n\n<<<< CALCOLO ISTANZA CPLEX>>>>")
+    
     prob = cplex.Cplex()
     prob.set_log_stream(None)
     prob.set_results_stream(None)
@@ -206,7 +200,6 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     obj_prev = 0
     print("=================================================================")
     for i in range(len(cuts)):
-        
         # 1. Estrai il taglio corrente
         indici = [j for j, val in enumerate(cuts[i]) if val != 0]
         valori = [cuts[i][j] for j in indici]
@@ -216,18 +209,14 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             senses=[cut_senses[i]],
             rhs=[cuts_limits[i]]
         )
-
         # 3. Risolvi il problema aggiornato
         prob.solve()
-
-
         # 4. Stampa la nuova soluzione
-        #print(f"\n========== SOLUZIONE CORRENTE ==========\n\tIterazione {i+1}")
         try:
             obj_value_cplex = prob.solution.get_objective_value()
             var_names = prob.variables.get_names()
             var_values = prob.solution.get_values()
-            if obj_value_cplex == obj_prev : 
+            if abs(obj_value_cplex - obj_prev)< 1e-3 :
                 counter +=1
             else : 
                 counter = 0 
@@ -237,20 +226,16 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
                 print(f"| {i}° iterazione   Valore funzione obiettivo: {obj_value_cplex:.4f}\t|")
             else:
                 print(f"| {i}° iterazione  Valore funzione obiettivo: {obj_value_cplex:.4f}\t|")
-                
-
-            #print(f"Valore funzione obiettivo: {obj_value_cplex:.4f}\n")
-            # print("Valori delle variabili:")
-            # for name, val in zip(var_names, var_values):
-            #     if name.startswith('y') :
-            #         print(f"   {name} = {val:.4f}")
         except Exception as e:
             print("Errore nel recupero della soluzione:", e)
         if counter ==5: 
             print("-----------------------------------------------------------------")
             print(f"La soluzione non migliora ulteriormente dopo iterazione {i}")
             break
-
+    time_step = time.time() - t0
+    obj_step = obj_value_cplex
+    gap_step = compute_gap(obj_step, obj_int)
+    
 
     
     #print("\n***** GOMORY CUTS *****");
@@ -283,19 +268,25 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
     return {
         "istanza": os.path.basename(data_path),
+        "facility" : m,
+        "clienti" : n,
         "obj_int": obj_int,
         "time_int": time_int,
         "obj_relax": obj_value_cplex,
         "time_relax": time_relax,
         "gap_relax": gap_relax,
-        # "obj_gomory_all": obj_all,
-        # "time_gomory_all": time_all,
+        "obj_cplex" : obj_value_cplex,
+        "time_relax": time_relax,
+        "gap_relax": gap_relax,
+        "obj_gomory_all": obj_all,
+        "time_gomory_all": time_all,
         # "iter_gomory_all": iter_all,
-        # "gap_gomory_all": gap_all,
-        #  "obj_gomory_step": obj_step,
-        # "time_gomory_step": time_step,
-        # "iter_gomory_step": iter_step,
-        #  "gap_gomory_step": gap_step,
+        "gap_gomory_all": gap_all,
+        "obj_gomory_step": obj_step,
+        "time_gomory_step": time_step,
+        "numero tagli possibili" : n_cuts,
+        "iter_gomory_step": i,
+        "gap_gomory_step": gap_step,
         "nota": ""
     }
 
@@ -336,7 +327,7 @@ def main():
     for res in risultati:
         max_len = max(len(k) for k in res.keys())  # per allineare i due punti
         for key, value in res.items():
-            if type(value) is int or type(value) is float :
+            if type(value) is float :
                 print(f"{key.ljust(max_len)} :{value:.4f}")
             else:
                 print(f"{key.ljust(max_len)} :{value}")

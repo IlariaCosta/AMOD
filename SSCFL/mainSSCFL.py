@@ -40,7 +40,11 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     ampl.read(mod_path_int)
     ampl.read_data(data_path)
     ampl.set_option('cplex_options', 'mipgap=0')
-   
+    
+    facilities = ampl.get_set('FACILITIES')
+    clients = ampl.get_set('CLIENTS')
+    n_facilities = len([f for f in facilities.get_values()])
+    n_customers = len([c for c in clients.get_values()])
     t0 = time.time()
     ampl.solve() 
     time_int = time.time() - t0
@@ -84,6 +88,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         print ("SOLUZIONE GIA' INTERA\n");
         return {
             "istanza": os.path.basename(data_path),
+            "facility" : n_facilities,
+            "clienti" : n_customers,
             "obj_int": obj_int,
             "time_int": time_int,
             "obj_relax": obj_relax,
@@ -112,13 +118,16 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     m = len(facilities)
     n = len(clients)
     c,A,b = getProblemData(f_vector, c_param,demands, capacity)   # c -> m + n*m variabili
-    nCols, nRows =(len(c)), (len(b))                    # b -> n + m*n + m vincoli (clienti + clienti*faciliy + facility)
+    nCols, nRows =(len(c)), (len(b))                              # b -> n + m*n + m vincoli (clienti + clienti*faciliy + facility)
     
     # inizializzo instanza delle variabili con i telaviti UB e LB
-    names, lower_bounds, upper_bounds,constraint_senses,constraint_names = initializeInstanceVariables(n,m) 
+    (names, 
+     lower_bounds, 
+     upper_bounds,
+     constraint_senses,
+     constraint_names) = initializeInstanceVariables(n,m) 
     
-    
-    nCols= nCols + n*m + m    # numero variabili totali 'y' + 'x' + 's' (clienti*facility + facility)
+    nCols= nCols + n*m + m    # numero variabili totali 'y' + 'x' + 's'                       (clienti*facility + facility)
 
     prob = cplex.Cplex()
     prob.set_log_stream(None)
@@ -208,7 +217,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             obj_value_cplex = prob.solution.get_objective_value()
             var_names = prob.variables.get_names()
             var_values = prob.solution.get_values()
-            if obj_value_cplex == obj_prev : 
+            if abs(obj_value_cplex - obj_prev)< 1e-3 : 
                 counter +=1
             else : 
                 counter = 0 
@@ -225,7 +234,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             #         print(f"  {name} = {val:.4f}")
         except Exception as e:
             print("Errore nel recupero della soluzione:", e)
-        if counter ==10: 
+        if counter ==5: 
             print("-----------------------------------------------------------------")
             print(f"\tDopo {i} iterazioni non ci sono miglioramenti")
             break
@@ -250,6 +259,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 
     return {
         "istanza": os.path.basename(data_path),
+        "facility" : m,
+        "clienti" : n,
         "obj_int": obj_int,
         "time_int": time_int,
         "obj_relax": obj_relax,
@@ -262,7 +273,8 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         "gap_gomory_all": gap_all,
         "obj_gomory_step": obj_step,
         "time_gomory_step": time_step,
-        # "iter_gomory_step": iter_step,
+        "numero tagli possibili" : n_cuts,
+        "iter_gomory_step": i,
         "gap_gomory_step": gap_step,
         "nota": ""
     }
@@ -276,7 +288,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
 def main():
     modello_intero = "sscfl.mod"
     modello_relax = "sscfl_relax.mod"
-    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith("41.dat")])
+    istanze = sorted([f for f in os.listdir() if f.startswith("cap") and f.endswith(".dat")])
     risultati = []
     for ist in istanze:
         print("=================================================================")
@@ -295,7 +307,7 @@ def main():
     max_len = 15
     for res in risultati:
         for key, value in res.items():
-            if type(value) is int or type(value) is float :
+            if type(value) is float :
                 print(f"{key.ljust(max_len)} :{value:.4f}")
             else:
                 print(f"{key.ljust(max_len)} :{value}")

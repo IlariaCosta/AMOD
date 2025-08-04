@@ -1,13 +1,15 @@
+# modello SSCFL - Single Source Capacitated Facility Location
+
 set FACILITIES;
 set CLIENTS;
 set CUTS;
 param f {FACILITIES} >= 0;                # costo apertura facility
 param d {CLIENTS} >= 0;                   # domanda cliente
-param cost {CLIENTS, FACILITIES} >= 0;      # costo trasporto cliente-facility
+param cost {CLIENTS, FACILITIES} >= 0;    # costo trasporto cliente-facility
 param capacity {FACILITIES} >= 0;         # capacità facility
 
 var x {CLIENTS, FACILITIES} binary;       # assegnazione clienti (single source)
-var y {FACILITIES} binary;                 # apertura facility
+var y {FACILITIES} binary;                # apertura facility
 
 # Ogni cliente è assegnato a una sola facility
 s.t. Assign {j in CLIENTS}:
@@ -24,3 +26,4 @@ s.t. Capacity {i in FACILITIES}:
 # Funzione obiettivo: costi apertura + costi trasporto
 minimize TotalCost:
     sum {i in FACILITIES} f[i]*y[i] + sum {j in CLIENTS, i in FACILITIES} cost[j,i]*x[j,i];
+
