@@ -4,7 +4,7 @@ def is_integral(var_values):
     return all(abs(val - round(val)) < 1e-8 for val in var_values)
  
 def compute_gap(relaxed_val, optimal_val):
-    return abs((relaxed_val - optimal_val) / optimal_val) * 100
+    return abs((relaxed_val - optimal_val) / relaxed_val) * 100
 
 def invert_matrix(m):
     n = len(m)

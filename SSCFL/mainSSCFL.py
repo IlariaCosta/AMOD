@@ -217,7 +217,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             obj_value_cplex = prob.solution.get_objective_value()
             var_names = prob.variables.get_names()
             var_values = prob.solution.get_values()
-            if abs(obj_value_cplex - obj_prev)< 1e-3 : 
+            if abs(obj_value_cplex - obj_prev)< 1e-5 : 
                 counter +=1
             else : 
                 counter = 0 
@@ -234,13 +234,14 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
             #         print(f"  {name} = {val:.4f}")
         except Exception as e:
             print("Errore nel recupero della soluzione:", e)
-        if counter ==5: 
+        if counter ==20: 
             print("-----------------------------------------------------------------")
             print(f"\tDopo {i} iterazioni non ci sono miglioramenti")
             break
     time_step = time.time() - t0
     obj_step = obj_value_cplex
     gap_step = compute_gap(obj_step, obj_int)
+   
     
     # 4. Gomory: tutti i tagli
     print("=================================================================")
@@ -253,6 +254,7 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
     ampl_all.read_data(data_path)
     obj_all, time_all, iter_all = solve_with_gomory(ampl_all, all_cuts=True)
     gap_all = compute_gap(obj_all, obj_int)
+   
     print(f"\n\tValore soluzione Rilassata: \t\t {obj_relax:.4f}")
     print(f"\tValore soluzione rilassata dopo i tagli: {obj_all:.4f}")
     print(f"\tGap Gomory all: {gap_all:.4f}%")
@@ -264,7 +266,6 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         "obj_int": obj_int,
         "time_int": time_int,
         "obj_relax": obj_relax,
-        "obj_cplex" : obj_value_cplex,
         "time_relax": time_relax,
         "gap_relax": gap_relax,
         "obj_gomory_all": obj_all,
@@ -308,7 +309,10 @@ def main():
     for res in risultati:
         for key, value in res.items():
             if type(value) is float :
-                print(f"{key.ljust(max_len)} :{value:.4f}")
+                if key.startswith("gap"):
+                    print(f"{key.ljust(max_len)} :{value:.8f}")
+                else:
+                    print(f"{key.ljust(max_len)} :{value:.4f}")
             else:
                 print(f"{key.ljust(max_len)} :{value}")
 

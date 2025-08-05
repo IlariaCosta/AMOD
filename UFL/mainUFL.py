@@ -272,10 +272,9 @@ def run_sscfl_experiment(mod_path_int, mod_path_relax, data_path):
         "clienti" : n,
         "obj_int": obj_int,
         "time_int": time_int,
-        "obj_relax": obj_value_cplex,
+        "obj_relax": obj_relax,
         "time_relax": time_relax,
         "gap_relax": gap_relax,
-        "obj_cplex" : obj_value_cplex,
         "time_relax": time_relax,
         "gap_relax": gap_relax,
         "obj_gomory_all": obj_all,
@@ -328,7 +327,10 @@ def main():
         max_len = max(len(k) for k in res.keys())  # per allineare i due punti
         for key, value in res.items():
             if type(value) is float :
-                print(f"{key.ljust(max_len)} :{value:.4f}")
+                if key.startswith("gap"):
+                    print(f"{key.ljust(max_len)} :{value:.8f}")
+                else:
+                    print(f"{key.ljust(max_len)} :{value:.4f}")
             else:
                 print(f"{key.ljust(max_len)} :{value}")
         print("-" * 40)
